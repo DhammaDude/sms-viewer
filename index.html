@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SMS Viewer</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #222;
+    --border: #2a2a2a;
+    --text: #e8e8e8;
+    --muted: #888;
+    --sent: #2563eb;
+    --received: #2a2a2a;
+    --accent: #3b82f6;
+    --search-bg: #111;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 14px;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Drop zone ── */
+  #drop-zone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    height: 100dvh;
+    border: 2px dashed var(--border);
+    border-radius: 16px;
+    margin: 24px;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+  }
+  #drop-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(59,130,246,.05);
+  }
+  #drop-zone svg { opacity: .4; }
+  #drop-zone h2 { font-size: 20px; font-weight: 600; }
+  #drop-zone p { color: var(--muted); font-size: 13px; }
+  #file-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity .15s;
+  }
+  #file-btn:hover { opacity: .85; }
+  #file-input { display: none; }
+
+  /* ── App shell ── */
+  #app {
+    display: none;
+    flex: 1;
+    overflow: hidden;
+    flex-direction: row;
+  }
+  #app.visible { display: flex; }
+
+  /* ── Sidebar ── */
+  #sidebar {
+    width: 280px;
+    min-width: 220px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #sidebar-header {
+    padding: 16px 16px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  #sidebar-header h1 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  #stats { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  #search {
+    width: 100%;
+    background: var(--search-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 8px 12px;
+    font-size: 13px;
+    outline: none;
+  }
+  #search:focus { border-color: var(--accent); }
+
+  #contact-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 0;
+  }
+  .contact-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: background .12s;
+    border-left: 3px solid transparent;
+  }
+  .contact-item:hover { background: var(--surface); }
+  .contact-item.active {
+    background: var(--surface2);
+    border-left-color: var(--accent);
+  }
+  .avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--surface2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    flex-shrink: 0;
+    color: var(--accent);
+  }
+  .contact-info { flex: 1; min-width: 0; }
+  .contact-name {
+    font-weight: 600;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .contact-preview {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+  }
+  .contact-meta {
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+    text-align: right;
+  }
+  .badge {
+    background: var(--accent);
+    color: #fff;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 7px;
+    margin-top: 3px;
+    display: inline-block;
+  }
+
+  /* ── Thread panel ── */
+  #thread-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #thread-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  #thread-header .avatar { width: 34px; height: 34px; font-size: 13px; }
+  #thread-title { font-weight: 700; font-size: 15px; }
+  #thread-subtitle { font-size: 12px; color: var(--muted); }
+  #thread-count { margin-left: auto; font-size: 12px; color: var(--muted); }
+
+  #thread-search-bar {
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+  }
+  #thread-search {
+    flex: 1;
+    background: var(--search-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 6px 12px;
+    font-size: 13px;
+    outline: none;
+  }
+  #thread-search:focus { border-color: var(--accent); }
+
+  #messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .date-divider {
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+    margin: 12px 0 4px;
+    letter-spacing: .04em;
+  }
+
+  .msg-row {
+    display: flex;
+    flex-direction: column;
+    max-width: 70%;
+  }
+  .msg-row.sent {
+    align-self: flex-end;
+    align-items: flex-end;
+  }
+  .msg-row.received {
+    align-self: flex-start;
+    align-items: flex-start;
+  }
+
+  .bubble {
+    padding: 8px 13px;
+    border-radius: 16px;
+    font-size: 14px;
+    line-height: 1.45;
+    word-break: break-word;
+    white-space: pre-wrap;
+  }
+  .sent .bubble {
+    background: var(--sent);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .received .bubble {
+    background: var(--received);
+    color: var(--text);
+    border-bottom-left-radius: 4px;
+  }
+  .bubble.highlight {
+    outline: 2px solid #facc15;
+  }
+
+  .msg-time {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+    padding: 0 4px;
+  }
+  .msg-label {
+    font-size: 10px;
+    color: var(--muted);
+    padding: 0 4px;
+    margin-bottom: 2px;
+  }
+
+  .mms-media {
+    max-width: 220px;
+    border-radius: 12px;
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  /* ── Empty state ── */
+  #empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--muted);
+  }
+  #empty-state svg { opacity: .3; }
+
+  /* ── Loading ── */
+  #loading {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99;
+    flex-direction: column;
+    gap: 14px;
+    font-size: 15px;
+    display: none;
+  }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  @media (max-width: 600px) {
+    #sidebar { width: 100%; position: absolute; z-index: 10; height: 100%; display: none; }
+    #sidebar.open { display: flex; }
+    #thread-panel { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Drop zone -->
+<div id="drop-zone">
+  <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+    <polyline points="14 2 14 8 20 8"/>
+    <line x1="12" y1="18" x2="12" y2="12"/>
+    <line x1="9" y1="15" x2="15" y2="15"/>
+  </svg>
+  <h2>SMS Viewer</h2>
+  <p>Drop your Android SMS backup XML here</p>
+  <button id="file-btn">Choose File</button>
+  <input type="file" id="file-input" accept=".xml" />
+</div>
+
+<!-- Loading overlay -->
+<div id="loading">
+  <div class="spinner"></div>
+  <span id="loading-msg">Parsing messages…</span>
+</div>
+
+<!-- Main app -->
+<div id="app">
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <h1>SMS Viewer</h1>
+      <div id="stats"></div>
+      <input type="text" id="search" placeholder="Search contacts…" autocomplete="off" />
+    </div>
+    <div id="contact-list"></div>
+  </div>
+
+  <!-- Thread panel -->
+  <div id="thread-panel">
+    <div id="empty-state">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      <span>Select a conversation</span>
+    </div>
+    <div id="thread-inner" style="display:none; flex:1; flex-direction:column; overflow:hidden; display:none;">
+      <div id="thread-header">
+        <div class="avatar" id="th-avatar"></div>
+        <div>
+          <div id="thread-title"></div>
+          <div id="thread-subtitle"></div>
+        </div>
+        <div id="thread-count"></div>
+      </div>
+      <div id="thread-search-bar">
+        <input type="text" id="thread-search" placeholder="Search messages…" autocomplete="off" />
+      </div>
+      <div id="messages"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────
+let threads = {};       // address → { name, messages[] }
+let currentThread = null;
+let threadSearchTerm = '';
+
+// ── DOM refs ───────────────────────────────────────────────────────────
+const dropZone    = document.getElementById('drop-zone');
+const fileInput   = document.getElementById('file-input');
+const fileBtn     = document.getElementById('file-btn');
+const app         = document.getElementById('app');
+const loading     = document.getElementById('loading');
+const loadingMsg  = document.getElementById('loading-msg');
+const contactList = document.getElementById('contact-list');
+const statsEl     = document.getElementById('stats');
+const searchEl    = document.getElementById('search');
+const emptyState  = document.getElementById('empty-state');
+const threadInner = document.getElementById('thread-inner');
+const messagesEl  = document.getElementById('messages');
+const thAvatar    = document.getElementById('th-avatar');
+const threadTitle = document.getElementById('thread-title');
+const threadSub   = document.getElementById('thread-subtitle');
+const threadCount = document.getElementById('thread-count');
+const threadSearch= document.getElementById('thread-search');
+
+// ── File handling ──────────────────────────────────────────────────────
+fileBtn.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => e.target.files[0] && loadFile(e.target.files[0]));
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) loadFile(file);
+});
+
+function loadFile(file) {
+  loading.style.display = 'flex';
+  loadingMsg.textContent = 'Reading file…';
+  const reader = new FileReader();
+  reader.onload = e => {
+    loadingMsg.textContent = 'Parsing messages…';
+    // yield to browser so loading UI actually shows
+    setTimeout(() => {
+      try {
+        parseXML(e.target.result);
+        dropZone.style.display = 'none';
+        app.classList.add('visible');
+      } catch(err) {
+        alert('Failed to parse XML: ' + err.message);
+      } finally {
+        loading.style.display = 'none';
+      }
+    }, 50);
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+// ── XML parsing ────────────────────────────────────────────────────────
+function parseXML(xmlStr) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlStr, 'application/xml');
+
+  const parseError = doc.querySelector('parsererror');
+  if (parseError) throw new Error(parseError.textContent.slice(0, 200));
+
+  threads = {};
+  let totalMsgs = 0;
+
+  // ── SMS ──
+  doc.querySelectorAll('sms').forEach(el => {
+    const addr   = normalizeAddr(el.getAttribute('address') || 'Unknown');
+    const name   = cleanName(el.getAttribute('contact_name')) || addr;
+    const body   = el.getAttribute('body') || '';
+    const date   = parseInt(el.getAttribute('date') || '0', 10);
+    const type   = el.getAttribute('type');   // 1=received, 2=sent, 3=draft
+    const rDate  = el.getAttribute('readable_date') || '';
+
+    if (!threads[addr]) threads[addr] = { name, address: addr, messages: [] };
+    if (name !== addr) threads[addr].name = name; // prefer non-numeric name
+
+    threads[addr].messages.push({
+      type: type === '2' ? 'sent' : 'received',
+      body,
+      date,
+      readableDate: rDate,
+      kind: 'sms',
+    });
+    totalMsgs++;
+  });
+
+  // ── MMS ──
+  doc.querySelectorAll('mms').forEach(el => {
+    const addr  = normalizeAddr(el.getAttribute('address') || 'Unknown');
+    const name  = cleanName(el.getAttribute('contact_name')) || addr;
+    const date  = parseInt(el.getAttribute('date') || '0', 10);
+    const mType = el.getAttribute('m_type'); // 128=sent, 132=received
+    const rDate = el.getAttribute('readable_date') || '';
+
+    if (!threads[addr]) threads[addr] = { name, address: addr, messages: [] };
+    if (name !== addr) threads[addr].name = name;
+
+    // Collect text parts
+    let body = '';
+    const parts = [];
+    el.querySelectorAll('part').forEach(p => {
+      const ct   = p.getAttribute('ct') || '';
+      const text = p.getAttribute('text');
+      const data = p.getAttribute('data'); // base64 for media
+      if (ct === 'text/plain' && text && text !== 'null') {
+        body = (body ? body + '\n' : '') + text;
+      } else if (data && data !== 'null' && ct.startsWith('image/')) {
+        parts.push({ ct, data });
+      }
+    });
+
+    threads[addr].messages.push({
+      type: mType === '128' ? 'sent' : 'received',
+      body,
+      mediaParts: parts,
+      date,
+      readableDate: rDate,
+      kind: 'mms',
+    });
+    totalMsgs++;
+  });
+
+  // Sort messages within each thread
+  Object.values(threads).forEach(t => {
+    t.messages.sort((a, b) => a.date - b.date);
+    t.lastDate = t.messages[t.messages.length - 1]?.date || 0;
+    t.lastBody = t.messages[t.messages.length - 1]?.body || '';
+  });
+
+  const threadList = Object.values(threads).sort((a, b) => b.lastDate - a.lastDate);
+
+  statsEl.textContent = `${threadList.length} contacts · ${totalMsgs.toLocaleString()} messages`;
+  renderContactList(threadList);
+}
+
+function normalizeAddr(addr) {
+  return addr.replace(/\s+/g, '').replace(/^(\+?1)?(\d{10})$/, (_, p, n) => '+1' + n) || addr;
+}
+
+function cleanName(name) {
+  if (!name || name === 'null' || name === '(Unknown)') return '';
+  return name.trim();
+}
+
+// ── Contact list ───────────────────────────────────────────────────────
+function renderContactList(threadList) {
+  contactList.innerHTML = '';
+  const term = searchEl.value.toLowerCase();
+  const filtered = term
+    ? threadList.filter(t => t.name.toLowerCase().includes(term) || t.address.includes(term))
+    : threadList;
+
+  if (!filtered.length) {
+    contactList.innerHTML = '<div style="padding:20px;text-align:center;color:#666;font-size:13px;">No contacts found</div>';
+    return;
+  }
+
+  filtered.forEach(t => {
+    const div = document.createElement('div');
+    div.className = 'contact-item' + (currentThread === t.address ? ' active' : '');
+    div.dataset.addr = t.address;
+
+    const initials = nameInitials(t.name);
+    const lastMsg  = t.lastBody ? t.lastBody.slice(0, 60) : '(media)';
+    const dateStr  = t.lastDate ? shortDate(t.lastDate) : '';
+
+    div.innerHTML = `
+      <div class="avatar">${initials}</div>
+      <div class="contact-info">
+        <div class="contact-name">${esc(t.name)}</div>
+        <div class="contact-preview">${esc(lastMsg)}</div>
+      </div>
+      <div class="contact-meta">
+        <div>${dateStr}</div>
+        <div class="badge">${t.messages.length}</div>
+      </div>`;
+    div.addEventListener('click', () => openThread(t.address));
+    contactList.appendChild(div);
+  });
+}
+
+searchEl.addEventListener('input', () => {
+  const threadList = Object.values(threads).sort((a, b) => b.lastDate - a.lastDate);
+  renderContactList(threadList);
+});
+
+// ── Thread view ────────────────────────────────────────────────────────
+function openThread(addr) {
+  currentThread = addr;
+  // Update sidebar active state
+  document.querySelectorAll('.contact-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.addr === addr);
+  });
+
+  const thread = threads[addr];
+  emptyState.style.display = 'none';
+  threadInner.style.display = 'flex';
+  threadInner.style.flex = '1';
+  threadInner.style.flexDirection = 'column';
+  threadInner.style.overflow = 'hidden';
+
+  thAvatar.textContent = nameInitials(thread.name);
+  threadTitle.textContent = thread.name;
+  threadSub.textContent = thread.address !== thread.name ? thread.address : '';
+  threadCount.textContent = `${thread.messages.length} messages`;
+
+  threadSearch.value = '';
+  threadSearchTerm = '';
+  renderMessages(thread.messages);
+}
+
+threadSearch.addEventListener('input', () => {
+  if (!currentThread) return;
+  threadSearchTerm = threadSearch.value.toLowerCase();
+  renderMessages(threads[currentThread].messages);
+});
+
+function renderMessages(messages) {
+  messagesEl.innerHTML = '';
+  const term = threadSearchTerm;
+
+  const filtered = term
+    ? messages.filter(m => m.body.toLowerCase().includes(term))
+    : messages;
+
+  let lastDateLabel = '';
+  const fragment = document.createDocumentFragment();
+
+  filtered.forEach(msg => {
+    const d = new Date(msg.date);
+    const dayLabel = d.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    if (dayLabel !== lastDateLabel) {
+      const div = document.createElement('div');
+      div.className = 'date-divider';
+      div.textContent = dayLabel;
+      fragment.appendChild(div);
+      lastDateLabel = dayLabel;
+    }
+
+    const row = document.createElement('div');
+    row.className = `msg-row ${msg.type}`;
+
+    // MMS label
+    if (msg.kind === 'mms') {
+      const lbl = document.createElement('div');
+      lbl.className = 'msg-label';
+      lbl.textContent = 'MMS';
+      row.appendChild(lbl);
+    }
+
+    // Media parts
+    if (msg.mediaParts && msg.mediaParts.length > 0) {
+      msg.mediaParts.forEach(part => {
+        const img = document.createElement('img');
+        img.className = 'mms-media';
+        img.src = `data:${part.ct};base64,${part.data}`;
+        img.alt = 'MMS image';
+        row.appendChild(img);
+      });
+    }
+
+    // Text bubble
+    if (msg.body) {
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble' + (term && msg.body.toLowerCase().includes(term) ? ' highlight' : '');
+      bubble.textContent = msg.body;
+      row.appendChild(bubble);
+    }
+
+    // Timestamp
+    const timeEl = document.createElement('div');
+    timeEl.className = 'msg-time';
+    timeEl.textContent = msg.readableDate || d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    row.appendChild(timeEl);
+
+    fragment.appendChild(row);
+  });
+
+  messagesEl.appendChild(fragment);
+
+  if (term && filtered.length) {
+    threadCount.textContent = `${filtered.length} / ${messages.length} messages`;
+    // scroll to first highlight
+    const first = messagesEl.querySelector('.highlight');
+    if (first) first.scrollIntoView({ block: 'center' });
+  } else {
+    threadCount.textContent = `${messages.length} messages`;
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+}
+
+// ── Utilities ──────────────────────────────────────────────────────────
+function nameInitials(name) {
+  const parts = name.replace(/[^a-zA-Z0-9\s]/g, '').trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  if (parts[0]) return parts[0][0].toUpperCase();
+  return '?';
+}
+
+function shortDate(ts) {
+  const d = new Date(ts);
+  const now = new Date();
+  const diffDays = Math.floor((now - d) / 86400000);
+  if (diffDays === 0) return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  if (diffDays < 7) return d.toLocaleDateString(undefined, { weekday: 'short' });
+  if (d.getFullYear() === now.getFullYear()) return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function esc(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
