@@ -93,11 +93,12 @@ function processMms(raw) {
 
 // Stream through the file looking for <sms .../> and <mms ...></mms>
 function startParse() {
-  const stream = fs.createReadStream(absPath, { highWaterMark: 8 * 1024 * 1024 }); // 8MB chunks
+  const stream = fs.createReadStream(absPath, { highWaterMark: 2 * 1024 * 1024 }); // 2MB chunks
   let buf = '';
   let bytesRead = 0;
 
   stream.on('data', chunk => {
+    stream.pause(); // yield event loop so HTTP server can respond
     buf += chunk.toString('utf8');
     bytesRead += chunk.length;
     parseProgress = Math.min(99, Math.round((bytesRead / fileSize) * 100));
@@ -132,6 +133,7 @@ function startParse() {
 
     // Trim processed portion — keep from last unprocessed element start
     buf = buf.slice(pos);
+    setImmediate(() => stream.resume()); // hand back to event loop before reading next chunk
   });
 
   stream.on('end', () => {
