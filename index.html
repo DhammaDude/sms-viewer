@@ -425,40 +425,46 @@ dropZone.addEventListener('drop', e => {
   if (file) loadFile(file);
 });
 
-function loadFile(file) {
+async function loadFile(file) {
   loading.style.display = 'flex';
-  loadingMsg.textContent = `Reading file… (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+  const mb = (file.size / 1024 / 1024).toFixed(1);
+  loadingMsg.textContent = `Reading file… 0% (${mb} MB)`;
 
-  const reader = new FileReader();
-
-  reader.onprogress = e => {
-    if (e.lengthComputable) {
-      const pct = Math.round((e.loaded / e.total) * 100);
-      loadingMsg.textContent = `Reading file… ${pct}%`;
-    }
-  };
-
-  reader.onerror = () => {
-    loading.style.display = 'none';
-    alert('Could not read the file: ' + reader.error);
-  };
-
-  reader.onload = e => {
+  try {
+    const text = await readFileInChunks(file);
     loadingMsg.textContent = 'Parsing messages…';
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      try {
-        parseXML(e.target.result);
-        dropZone.style.display = 'none';
-        app.classList.add('visible');
-      } catch(err) {
-        alert('Failed to parse XML: ' + err.message);
-      } finally {
-        loading.style.display = 'none';
-      }
-    }));
-  };
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    parseXML(text);
+    dropZone.style.display = 'none';
+    app.classList.add('visible');
+  } catch(err) {
+    alert('Error: ' + err.message);
+  } finally {
+    loading.style.display = 'none';
+  }
+}
 
-  reader.readAsText(file, 'UTF-8');
+async function readFileInChunks(file) {
+  const CHUNK = 50 * 1024 * 1024; // 50 MB
+  const chunks = [];
+  let offset = 0;
+
+  while (offset < file.size) {
+    const blob = file.slice(offset, offset + CHUNK);
+    const text = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload  = e => resolve(e.target.result);
+      r.onerror = ()  => reject(new Error('Could not read chunk at byte ' + offset + ': ' + r.error));
+      r.readAsText(blob, 'UTF-8');
+    });
+    chunks.push(text);
+    offset += CHUNK;
+    const pct = Math.min(100, Math.round((offset / file.size) * 100));
+    loadingMsg.textContent = `Reading file… ${pct}%`;
+    await new Promise(r => setTimeout(r, 0)); // yield so UI updates
+  }
+
+  return chunks.join('');
 }
 
 // ── XML parsing ────────────────────────────────────────────────────────
