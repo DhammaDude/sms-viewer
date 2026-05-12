@@ -95,7 +95,7 @@
   .contact-item {
     display: flex; align-items: center; gap: 12px;
     padding: 10px 16px; cursor: pointer; transition: background .12s;
-    border-left: 3px solid transparent;
+    border-left: 3px solid transparent; position: relative;
   }
   .contact-item:hover { background: var(--surface); }
   .contact-item.active { background: var(--surface2); border-left-color: var(--accent); }
@@ -109,6 +109,30 @@
   .contact-preview { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
   .contact-meta { font-size: 11px; color: var(--muted); white-space: nowrap; text-align: right; }
   .badge { background: var(--accent); color: #fff; border-radius: 10px; font-size: 11px; font-weight: 700; padding: 1px 7px; margin-top: 3px; display: inline-block; }
+
+  /* ── Export button ── */
+  .export-btn {
+    flex-shrink: 0; background: none; border: none; color: var(--muted);
+    cursor: pointer; padding: 4px; border-radius: 6px; opacity: 0;
+    transition: opacity .15s, color .15s, background .15s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .contact-item:hover .export-btn { opacity: 1; }
+  .export-btn:hover { color: var(--text); background: var(--border); }
+
+  /* ── Export dropdown ── */
+  .export-menu {
+    position: fixed; background: #1e1e1e; border: 1px solid var(--border);
+    border-radius: 10px; padding: 6px; z-index: 200; min-width: 140px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  }
+  .export-menu button {
+    display: block; width: 100%; text-align: left; background: none;
+    border: none; color: var(--text); padding: 7px 12px; font-size: 13px;
+    border-radius: 6px; cursor: pointer; transition: background .1s;
+  }
+  .export-menu button:hover { background: var(--surface2); }
+  .export-menu hr { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
 
   /* ── Thread panel ── */
   #thread-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -433,7 +457,18 @@ function renderContactList(list) {
       <div class="contact-meta">
         <div>${t.lastDate ? shortDate(t.lastDate) : ''}</div>
         <div class="badge">${count.toLocaleString()}</div>
-      </div>`;
+      </div>
+      <button class="export-btn" title="Export conversation" aria-label="Export">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+      </button>`;
+    div.querySelector('.export-btn').addEventListener('click', e => {
+      e.stopPropagation();
+      showExportMenu(e.currentTarget, t.address, t.name);
+    });
     div.addEventListener('click', () => openThread(t.address, t.name));
     frag.appendChild(div);
   });
@@ -575,6 +610,100 @@ function esc(str) {
 
 function raf2() {
   return new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+}
+
+// ── Export ───────────────────────────────────────────────────────────────
+let activeMenu = null;
+
+function showExportMenu(btn, addr, name) {
+  closeExportMenu();
+  const menu = document.createElement('div');
+  menu.className = 'export-menu';
+  menu.innerHTML = `
+    <button data-fmt="xml">XML  <span style="color:#555;font-size:11px">Android format</span></button>
+    <button data-fmt="json">JSON</button>
+    <button data-fmt="csv">CSV</button>
+    <button data-fmt="txt">TXT  <span style="color:#555;font-size:11px">chat log</span></button>`;
+
+  const rect = btn.getBoundingClientRect();
+  menu.style.top  = (rect.bottom + 4) + 'px';
+  menu.style.left = Math.min(rect.left, window.innerWidth - 160) + 'px';
+
+  menu.querySelectorAll('button').forEach(b => {
+    b.addEventListener('click', () => { closeExportMenu(); doExport(addr, name, b.dataset.fmt); });
+  });
+
+  document.body.appendChild(menu);
+  activeMenu = menu;
+  setTimeout(() => document.addEventListener('click', closeExportMenu, { once: true }), 0);
+}
+
+function closeExportMenu() {
+  activeMenu?.remove();
+  activeMenu = null;
+}
+
+async function doExport(addr, name, fmt) {
+  let messages;
+  if (SERVER_MODE) {
+    const thread = await fetch(`${API}/thread/${encodeURIComponent(addr)}`).then(r => r.json());
+    messages = thread.messages;
+  } else {
+    messages = threads[addr]?.messages || [];
+  }
+
+  const safeName = (name || addr).replace(/[^a-z0-9_\- ]/gi, '_').slice(0, 40);
+  let content, mime, ext;
+
+  if (fmt === 'xml') {
+    const rows = messages.map(m => {
+      const type = m.type === 'sent' ? '2' : '1';
+      const kind = m.kind || 'sms';
+      if (kind === 'sms') {
+        return `  <sms address="${esc(addr)}" date="${m.date}" type="${type}" body="${esc(m.body || '')}" readable_date="${esc(m.readableDate || '')}" contact_name="${esc(name)}" />`;
+      } else {
+        return `  <mms address="${esc(addr)}" date="${m.date}" m_type="${type === '2' ? '128' : '132'}" readable_date="${esc(m.readableDate || '')}" contact_name="${esc(name)}"><parts><part ct="text/plain" text="${esc(m.body || '')}" /></parts></mms>`;
+      }
+    }).join('\n');
+    content = `<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>\n<smses count="${messages.length}">\n${rows}\n</smses>`;
+    mime = 'application/xml'; ext = 'xml';
+
+  } else if (fmt === 'json') {
+    content = JSON.stringify({ contact: name, address: addr, messages }, null, 2);
+    mime = 'application/json'; ext = 'json';
+
+  } else if (fmt === 'csv') {
+    const header = 'date,type,kind,body';
+    const rows = messages.map(m => {
+      const d = m.readableDate || new Date(m.date).toLocaleString();
+      const body = (m.body || '').replace(/"/g, '""');
+      return `"${d}","${m.type}","${m.kind || 'sms'}","${body}"`;
+    });
+    content = [header, ...rows].join('\n');
+    mime = 'text/csv'; ext = 'csv';
+
+  } else {
+    const lines = [];
+    let lastDay = '';
+    messages.forEach(m => {
+      const d = new Date(m.date);
+      const day = d.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      if (day !== lastDay) { lines.push(`\n── ${day} ──\n`); lastDay = day; }
+      const time = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+      const who  = m.type === 'sent' ? 'You' : name;
+      lines.push(`[${time}] ${who}: ${m.body || '(media)'}`);
+    });
+    content = lines.join('\n');
+    mime = 'text/plain'; ext = 'txt';
+  }
+
+  const blob = new Blob([content], { type: mime });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `${safeName}.${ext}`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 </script>
 </body>
