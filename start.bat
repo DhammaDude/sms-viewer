@@ -17,4 +17,4 @@ if "%XML%"=="" (
 )
 
 :run
-node "%~dp0server.js" "%XML%"
+node --max-old-space-size=6144 "%~dp0server.js" "%XML%"
