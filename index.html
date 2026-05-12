@@ -246,9 +246,15 @@ if (SERVER_MODE) {
   pollServerStatus();
 }
 
+let _pollFailures = 0;
 async function pollServerStatus() {
   try {
-    const status = await fetch(`${API}/status`).then(r => r.json());
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const status = await fetch(`${API}/status`, { signal: controller.signal }).then(r => r.json());
+    clearTimeout(timeout);
+    _pollFailures = 0;
+
     loadingMsg.textContent = `Parsing… ${status.progress}%`;
     loadingSub.textContent = `${status.contacts} contacts · ${status.messages.toLocaleString()} messages so far`;
 
@@ -261,11 +267,17 @@ async function pollServerStatus() {
     if (status.done) {
       await loadContactsFromServer();
     } else {
-      setTimeout(pollServerStatus, 800);
+      setTimeout(pollServerStatus, 1200);
     }
   } catch(e) {
-    loadingEl.style.display = 'none';
-    alert('Could not connect to server. Make sure you ran: node server.js <your-file.xml>');
+    _pollFailures++;
+    if (_pollFailures >= 8) {
+      loadingEl.style.display = 'none';
+      alert('Lost connection to server. Check the terminal window is still open.');
+      return;
+    }
+    // Transient timeout — retry silently
+    setTimeout(pollServerStatus, 2000);
   }
 }
 
