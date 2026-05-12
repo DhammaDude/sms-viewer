@@ -440,16 +440,14 @@ function loadFile(file) {
 
   reader.onerror = () => {
     loading.style.display = 'none';
-    alert('Could not read the file. Try opening index.html via a local server (e.g. drag it into VS Code Live Server) instead of directly from the filesystem.');
+    alert('Could not read the file: ' + reader.error);
   };
 
   reader.onload = e => {
     loadingMsg.textContent = 'Parsing messages…';
-    // Let browser paint the loading state before blocking parse
     requestAnimationFrame(() => requestAnimationFrame(() => {
       try {
-        const text = new TextDecoder('utf-8').decode(e.target.result);
-        parseXML(text);
+        parseXML(e.target.result);
         dropZone.style.display = 'none';
         app.classList.add('visible');
       } catch(err) {
@@ -460,7 +458,7 @@ function loadFile(file) {
     }));
   };
 
-  reader.readAsArrayBuffer(file);
+  reader.readAsText(file, 'UTF-8');
 }
 
 // ── XML parsing ────────────────────────────────────────────────────────
