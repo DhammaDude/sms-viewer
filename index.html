@@ -427,14 +427,29 @@ dropZone.addEventListener('drop', e => {
 
 function loadFile(file) {
   loading.style.display = 'flex';
-  loadingMsg.textContent = 'Reading file…';
+  loadingMsg.textContent = `Reading file… (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+
   const reader = new FileReader();
+
+  reader.onprogress = e => {
+    if (e.lengthComputable) {
+      const pct = Math.round((e.loaded / e.total) * 100);
+      loadingMsg.textContent = `Reading file… ${pct}%`;
+    }
+  };
+
+  reader.onerror = () => {
+    loading.style.display = 'none';
+    alert('Could not read the file. Try opening index.html via a local server (e.g. drag it into VS Code Live Server) instead of directly from the filesystem.');
+  };
+
   reader.onload = e => {
     loadingMsg.textContent = 'Parsing messages…';
-    // yield to browser so loading UI actually shows
-    setTimeout(() => {
+    // Let browser paint the loading state before blocking parse
+    requestAnimationFrame(() => requestAnimationFrame(() => {
       try {
-        parseXML(e.target.result);
+        const text = new TextDecoder('utf-8').decode(e.target.result);
+        parseXML(text);
         dropZone.style.display = 'none';
         app.classList.add('visible');
       } catch(err) {
@@ -442,9 +457,10 @@ function loadFile(file) {
       } finally {
         loading.style.display = 'none';
       }
-    }, 50);
+    }));
   };
-  reader.readAsText(file, 'UTF-8');
+
+  reader.readAsArrayBuffer(file);
 }
 
 // ── XML parsing ────────────────────────────────────────────────────────
