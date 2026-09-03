@@ -4,26 +4,32 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Digital Antikythera Mechanism</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Spectral:wght@400;500;600&display=swap">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg: #14100a;
-    --panel: #1d160d;
+    --bg: #120e08;
+    --panel: #1b140c;
     --panel2: #241b10;
-    --border: #4a371f;
-    --brass: #c9a227;
+    --border: #55401f;
+    --brass: #c9a54a;
     --brass-dim: #8a6a35;
-    --parchment: #e9dcb8;
+    --ivory: #ece2c4;
+    --ink: #211a10;
+    --parchment: #e7ddc0;
     --muted: #9c8b66;
-    --accent: #d97a3a;
-    --danger: #d1583f;
+    --accent: #c46a3a;
+    --danger: #a8402b;
+    --font-display: "Cinzel", "Cormorant Garamond", Georgia, serif;
+    --font-heading: "Cormorant Garamond", Georgia, serif;
+    --font-body: "Spectral", "Iowan Old Style", Georgia, serif;
   }
 
   body {
-    background: radial-gradient(ellipse at 50% 0%, #221a10 0%, var(--bg) 70%);
+    background: radial-gradient(ellipse at 50% 0%, #241a0d 0%, var(--bg) 70%);
     color: var(--parchment);
-    font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    font-family: var(--font-body);
     font-size: 14px;
     height: 100dvh;
     display: flex;
@@ -37,25 +43,34 @@
     display: flex; flex-direction: column; overflow: hidden;
     background: var(--panel);
   }
-  #sidebar-header { padding: 18px 18px 12px; border-bottom: 1px solid var(--border); }
-  #sidebar-header h1 { font-size: 17px; font-weight: 700; letter-spacing: .03em; color: var(--brass); }
-  #sidebar-header .sub { font-size: 11px; color: var(--muted); margin-top: 4px; letter-spacing: .06em; text-transform: uppercase; }
+  #sidebar-header { padding: 18px 18px 14px; border-bottom: 1px solid var(--border); }
+  #sidebar-header h1 {
+    font-family: var(--font-display); font-size: 17px; font-weight: 600;
+    letter-spacing: .08em; color: var(--brass); text-transform: uppercase;
+  }
+  #sidebar-header .sub {
+    font-family: var(--font-heading); font-style: italic; font-size: 13px;
+    color: var(--muted); margin-top: 5px;
+  }
 
   .controls { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
-  .controls label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; display: block; margin-bottom: 4px; }
+  .controls label {
+    font-family: var(--font-display); font-size: 10px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .12em; display: block; margin-bottom: 4px;
+  }
   .row { display: flex; gap: 8px; align-items: center; }
   input[type="date"], select {
     flex: 1; background: #0f0b06; border: 1px solid var(--border); color: var(--parchment);
-    padding: 6px 8px; border-radius: 6px; font-size: 13px; font-family: inherit;
+    padding: 6px 8px; border-radius: 4px; font-size: 13px; font-family: var(--font-body);
   }
   button.ctl {
     background: var(--panel2); border: 1px solid var(--border); color: var(--brass);
-    padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; font-family: inherit;
-    transition: background .15s;
+    padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-family: var(--font-display);
+    letter-spacing: .04em; transition: background .15s;
   }
   button.ctl:hover { background: #34260f; }
   button.ctl.active { background: var(--brass); color: #241b10; }
-  #datetime-readout { font-size: 12px; color: var(--muted); text-align: center; }
+  #datetime-readout { font-family: var(--font-body); font-size: 12px; color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }
 
   #planet-list { flex: 1; overflow-y: auto; padding: 6px 0; }
   .planet-row {
@@ -66,29 +81,48 @@
   .planet-row.active { background: #2c2011; border-left-color: var(--accent); }
   .p-glyph { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; border: 1px solid var(--border); }
   .p-info { flex: 1; min-width: 0; }
-  .p-name { font-weight: 700; font-size: 13px; }
-  .p-meta { font-size: 11px; color: var(--muted); }
-  .p-rx { font-size: 10px; color: var(--danger); font-weight: 700; margin-left: 4px; }
+  .p-name { font-family: var(--font-heading); font-weight: 600; font-size: 15px; }
+  .p-meta { font-family: var(--font-body); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .p-rx { font-family: var(--font-display); font-size: 10px; color: var(--danger); font-weight: 700; margin-left: 4px; }
 
   #detail-panel { border-top: 1px solid var(--border); padding: 14px 18px; font-size: 12px; color: var(--muted); min-height: 92px; }
-  #detail-panel h3 { color: var(--brass); font-size: 13px; margin-bottom: 6px; }
-  #detail-panel div { line-height: 1.6; }
+  #detail-panel h3 { font-family: var(--font-heading); font-style: italic; color: var(--brass); font-size: 17px; font-weight: 600; margin-bottom: 6px; }
+  #detail-panel div { line-height: 1.7; font-variant-numeric: tabular-nums; }
 
   /* ── Main dial area ── */
-  #main { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: auto; padding: 20px; min-width: 0; min-height: 0; }
+  #main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: auto; padding: 20px; min-width: 0; min-height: 0; gap: 16px; }
   #dial-wrap { position: relative; max-width: 100%; }
   canvas#dial { display: block; max-width: 100%; height: auto; }
 
-  #subdials { position: absolute; bottom: 24px; left: 24px; display: flex; gap: 14px; }
-  .subdial-label { text-align: center; font-size: 10px; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; margin-top: 4px; }
+  /* ── Complications strip ── */
+  #subdials { display: flex; gap: 22px; align-items: flex-end; flex-wrap: wrap; justify-content: center; }
+  .complication { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .complication canvas { display: block; }
+  .subdial-label {
+    font-family: var(--font-display); text-align: center; font-size: 10px; color: var(--brass-dim);
+    letter-spacing: .1em; text-transform: uppercase;
+  }
+  .comp-caption {
+    font-family: var(--font-heading); font-style: italic; font-size: 12px; color: var(--parchment);
+    text-align: center; margin-top: -2px;
+  }
+  #date-aperture {
+    width: 90px; height: 90px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    border-radius: 50%; background: radial-gradient(circle at 35% 30%, #2a2013 0%, #17110a 70%);
+    border: 2px solid var(--brass-dim); box-shadow: inset 0 0 10px rgba(0,0,0,.6);
+  }
+  #date-aperture-window {
+    background: var(--ivory); color: var(--ink); font-family: var(--font-display); font-weight: 600;
+    font-size: 15px; letter-spacing: .04em; padding: 5px 10px; border-radius: 3px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,.4); border: 1px solid #6e5220;
+  }
+  #date-aperture-year { font-family: var(--font-body); font-size: 10px; color: var(--muted); margin-top: 5px; }
 
   @media (max-width: 820px) {
     body { flex-direction: column; height: auto; min-height: 100dvh; overflow: auto; }
     #sidebar { width: 100%; min-width: 0; border-right: none; border-bottom: 1px solid var(--border); max-height: none; }
     #planet-list { flex: none; max-height: 240px; }
     #main { padding: 12px; }
-    #subdials { position: static; margin-top: 14px; justify-content: center; }
-    #dial-wrap { display: flex; flex-direction: column; align-items: center; }
   }
 
   /* ── JSON export/import modal ── */
@@ -120,8 +154,8 @@
 
 <div id="sidebar">
   <div id="sidebar-header">
-    <h1>⚙ Digital Antikythera</h1>
-    <div class="sub">A mechanism of nine wandering stars</div>
+    <h1>Antikythera</h1>
+    <div class="sub">An orrery complication, nine spheres</div>
   </div>
 
   <div class="controls">
@@ -170,16 +204,30 @@
 
 <div id="main">
   <div id="dial-wrap">
-    <canvas id="dial" width="760" height="760"></canvas>
-    <div id="subdials">
-      <div>
-        <canvas id="moon-dial" width="90" height="90"></canvas>
-        <div class="subdial-label">Lunar Phase</div>
+    <canvas id="dial" width="860" height="860"></canvas>
+  </div>
+  <div id="subdials">
+    <div class="complication">
+      <canvas id="moon-dial" width="90" height="90"></canvas>
+      <div class="comp-caption" id="moon-caption">—</div>
+      <div class="subdial-label">Lunar Phase</div>
+    </div>
+    <div class="complication">
+      <canvas id="metonic-dial" width="90" height="90"></canvas>
+      <div class="comp-caption" id="metonic-caption">—</div>
+      <div class="subdial-label">Metonic Cycle</div>
+    </div>
+    <div class="complication">
+      <canvas id="day-dial" width="90" height="90"></canvas>
+      <div class="comp-caption" id="day-caption">—</div>
+      <div class="subdial-label">Day of Year</div>
+    </div>
+    <div class="complication">
+      <div id="date-aperture">
+        <div id="date-aperture-window"><span id="date-aperture-text">01 JAN</span></div>
+        <div id="date-aperture-year">AD <span id="date-aperture-year-text">2000</span></div>
       </div>
-      <div>
-        <canvas id="metonic-dial" width="90" height="90"></canvas>
-        <div class="subdial-label">Metonic Cycle</div>
-      </div>
+      <div class="subdial-label">Date</div>
     </div>
   </div>
 </div>
@@ -323,6 +371,13 @@ const moonCanvas  = document.getElementById('moon-dial');
 const moonCtx     = moonCanvas.getContext('2d');
 const metonicCanvas = document.getElementById('metonic-dial');
 const metonicCtx  = metonicCanvas.getContext('2d');
+const dayCanvas   = document.getElementById('day-dial');
+const dayCtx      = dayCanvas.getContext('2d');
+const dateApertureText = document.getElementById('date-aperture-text');
+const dateApertureYearText = document.getElementById('date-aperture-year-text');
+const moonCaption = document.getElementById('moon-caption');
+const metonicCaption = document.getElementById('metonic-caption');
+const dayCaption  = document.getElementById('day-caption');
 const exportBtn   = document.getElementById('export-btn');
 const exportRangeBtn = document.getElementById('export-range-btn');
 const importBtn   = document.getElementById('import-btn');
@@ -487,7 +542,7 @@ importInput.addEventListener('change', e => {
 // ─────────────────────────────────────────────────────────────────────────
 // Rendering
 // ─────────────────────────────────────────────────────────────────────────
-const CX = 380, CY = 380;
+const CX = 430, CY = 430;
 const R_MIN = 55, R_MAX = 340;
 const AU_MIN = Math.sqrt(0.31), AU_MAX = Math.sqrt(49.5);
 
@@ -513,6 +568,56 @@ function drawGearRing(c, cx, cy, rIn, rOut, teeth) {
   c.restore();
 }
 
+// Polished brass case ring with fine radial flutes, like a pocket-watch case back.
+function drawFlutedRing(c, cx, cy, rIn, rOut, flutes) {
+  c.save();
+  c.translate(cx, cy);
+  const bandGrad = c.createRadialGradient(0, 0, rIn, 0, 0, rOut);
+  bandGrad.addColorStop(0, '#4a3717');
+  bandGrad.addColorStop(0.5, '#d8b45e');
+  bandGrad.addColorStop(1, '#5c451f');
+  c.beginPath();
+  c.arc(0, 0, rOut, 0, 2 * Math.PI);
+  c.arc(0, 0, rIn, 0, 2 * Math.PI, true);
+  c.fillStyle = bandGrad;
+  c.fill('evenodd');
+  for (let i = 0; i < flutes; i++) {
+    const a = (i / flutes) * 2 * Math.PI;
+    c.strokeStyle = i % 2 === 0 ? 'rgba(0,0,0,0.28)' : 'rgba(255,244,214,0.22)';
+    c.lineWidth = 1;
+    c.beginPath();
+    c.moveTo(Math.cos(a) * rIn, Math.sin(a) * rIn);
+    c.lineTo(Math.cos(a) * rOut, Math.sin(a) * rOut);
+    c.stroke();
+  }
+  c.strokeStyle = '#2b2010'; c.lineWidth = 2;
+  c.beginPath(); c.arc(0, 0, rOut, 0, 2 * Math.PI); c.stroke();
+  c.beginPath(); c.arc(0, 0, rIn, 0, 2 * Math.PI); c.stroke();
+  c.restore();
+}
+
+// Text set along a circular arc, letter by letter — for engraved dial branding.
+function drawArcText(c, cx, cy, radius, text, centerAngleDeg, spreadDeg, color, font) {
+  c.save();
+  c.translate(cx, cy);
+  c.font = font;
+  c.fillStyle = color;
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  const n = text.length;
+  const step = n > 1 ? deg2rad(spreadDeg) / (n - 1) : 0;
+  const start = deg2rad(centerAngleDeg) + (n > 1 ? deg2rad(spreadDeg) / 2 : 0);
+  for (let i = 0; i < n; i++) {
+    const a = start - i * step;
+    c.save();
+    c.translate(Math.cos(a) * radius, -Math.sin(a) * radius);
+    c.rotate(-a + Math.PI / 2);
+    c.fillText(text[i], 0, 0);
+    c.restore();
+  }
+  c.restore();
+}
+
 function render() {
   const JD = toJulianDate(currentDate);
   const T = (JD - 2451545.0) / 36525;
@@ -524,11 +629,16 @@ function render() {
   const sunSignIndex = Math.floor(sunGeoLon / 30) % 12;
 
   ctx.clearRect(0, 0, dial.width, dial.height);
-  ctx.fillStyle = '#14100a';
+  ctx.fillStyle = '#120e08';
   ctx.fillRect(0, 0, dial.width, dial.height);
 
-  // outer gear bezel
+  // polished brass case ring (outermost)
+  drawFlutedRing(ctx, CX, CY, R_MAX + 52, R_MAX + 68, 140);
+
+  // movement ring — gear teeth plus engraved dial branding
   drawGearRing(ctx, CX, CY, R_MAX + 34, R_MAX + 48, 96);
+  drawArcText(ctx, CX, CY, R_MAX + 41, 'ANTIKYTHERA', 90, 56, '#f2e6bf', '600 12px Cinzel, serif');
+  drawArcText(ctx, CX, CY, R_MAX + 41, 'CAL. Θ · IX', 270, 44, '#f2e6bf', '600 11px Cinzel, serif');
 
   // zodiac ring — sector wedges tinted by classical element, current sign glowing
   ctx.save();
@@ -575,6 +685,17 @@ function render() {
     ctx.lineTo(Math.cos(a) * ringOuter, -Math.sin(a) * ringOuter);
     ctx.stroke();
   }
+  // fine minute-track ticks, watch-chapter-ring style
+  ctx.strokeStyle = 'rgba(74,55,31,0.8)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 120; i++) {
+    if (i % 10 === 0) continue; // skip where the 12 major ticks already fall
+    const a = deg2rad(i * 3);
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * (ringOuter - 5), -Math.sin(a) * (ringOuter - 5));
+    ctx.lineTo(Math.cos(a) * ringOuter, -Math.sin(a) * ringOuter);
+    ctx.stroke();
+  }
   ctx.restore();
 
   // orbit rings (static, based on mean semi-major axis)
@@ -590,29 +711,41 @@ function render() {
   });
   ctx.restore();
 
-  // sun
+  // sun hub — jeweled cap with regulator-style corner screws
   ctx.save();
   ctx.translate(CX, CY);
+  ctx.beginPath(); ctx.arc(0, 0, 24, 0, 2 * Math.PI);
+  ctx.strokeStyle = '#8a6a35'; ctx.lineWidth = 1.5; ctx.stroke();
+  [0, 90, 180, 270].forEach(deg => {
+    const a = deg2rad(deg);
+    const sx = Math.cos(a) * 24, sy = Math.sin(a) * 24;
+    ctx.beginPath(); ctx.arc(sx, sy, 2.2, 0, 2 * Math.PI);
+    ctx.fillStyle = '#2b2010'; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(sx - 1.6, sy); ctx.lineTo(sx + 1.6, sy);
+    ctx.strokeStyle = '#8a6a35'; ctx.lineWidth = 0.6; ctx.stroke();
+  });
   const sunGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, 22);
   sunGrad.addColorStop(0, '#fff3c9');
-  sunGrad.addColorStop(1, '#d97a3a');
+  sunGrad.addColorStop(1, '#c46a3a');
   ctx.beginPath(); ctx.arc(0, 0, 16, 0, 2 * Math.PI);
   ctx.fillStyle = sunGrad; ctx.fill();
   ctx.strokeStyle = '#8a6a35'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.beginPath(); ctx.arc(-5, -5, 3, 0, 2 * Math.PI);
+  ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fill();
   ctx.restore();
 
   // Sun pointer on the zodiac ring (sunGeoLon computed at top of render)
   ctx.save();
   ctx.translate(CX, CY);
   const sa = deg2rad(sunGeoLon);
-  ctx.strokeStyle = '#d97a3a'; ctx.lineWidth = 2;
+  ctx.strokeStyle = '#c46a3a'; ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(Math.cos(sa) * (R_MAX + 30), -Math.sin(sa) * (R_MAX + 30));
-  ctx.lineTo(Math.cos(sa) * (R_MAX + 44), -Math.sin(sa) * (R_MAX + 44));
+  ctx.lineTo(Math.cos(sa) * (R_MAX + 60), -Math.sin(sa) * (R_MAX + 60));
   ctx.stroke();
-  ctx.fillStyle = '#d97a3a';
-  ctx.font = 'bold 12px serif'; ctx.textAlign = 'center';
-  ctx.fillText('☉', Math.cos(sa) * (R_MAX + 54), -Math.sin(sa) * (R_MAX + 54) + 4);
+  ctx.fillStyle = '#c46a3a';
+  ctx.font = 'bold 13px serif'; ctx.textAlign = 'center';
+  ctx.fillText('☉', Math.cos(sa) * (R_MAX + 76), -Math.sin(sa) * (R_MAX + 76) + 4);
   ctx.restore();
 
   // planets
@@ -632,7 +765,7 @@ function render() {
     ctx.lineWidth = p.name === selected ? 2.5 : 1.5;
     ctx.stroke();
 
-    ctx.fillStyle = '#e9dcb8';
+    ctx.fillStyle = '#ece2c4';
     ctx.font = '11px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(p.symbol, x, y + 0.5);
 
@@ -640,17 +773,26 @@ function render() {
   });
   ctx.restore();
 
-  // moon phase subdial
+  // complications
   const newMoonRef = 2451550.1; // 2000-01-06 18:14 UT
   const synodic = 29.530588853;
   const moonPhase = (((JD - newMoonRef) % synodic) + synodic) % synodic / synodic;
-  drawMoonPhase(moonCtx, 45, 40, 26, moonPhase);
-  moonCtx.fillStyle = '#9c8b66'; moonCtx.font = '10px serif'; moonCtx.textAlign = 'center';
-  moonCtx.fillText(moonPhaseLabel(moonPhase), 45, 82);
+  drawMoonPhase(moonCtx, 45, 45, 34, moonPhase);
+  moonCaption.textContent = moonPhaseLabel(moonPhase);
 
-  // metonic cycle subdial (19-year lunisolar cycle, as on the real mechanism)
   const metonicYear = ((currentDate.getUTCFullYear() - 2000) % 19 + 19) % 19 + 1;
-  drawMetonicDial(metonicCtx, 45, 40, 30, metonicYear);
+  drawMetonicDial(metonicCtx, 45, 55, 36, metonicYear);
+  metonicCaption.textContent = `Year ${metonicYear} of 19`;
+
+  const startOfYear = Date.UTC(currentDate.getUTCFullYear(), 0, 1);
+  const daysInYear = (Date.UTC(currentDate.getUTCFullYear() + 1, 0, 1) - startOfYear) / 86400000;
+  const dayOfYear = Math.floor((Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), currentDate.getUTCDate()) - startOfYear) / 86400000) + 1;
+  drawDayOfYearDial(dayCtx, 45, 45, 36, dayOfYear, daysInYear);
+  dayCaption.textContent = `Day ${dayOfYear} of ${daysInYear}`;
+
+  const MONTH_ABBR = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  dateApertureText.textContent = `${String(currentDate.getUTCDate()).padStart(2, '0')} ${MONTH_ABBR[currentDate.getUTCMonth()]}`;
+  dateApertureYearText.textContent = currentDate.getUTCFullYear();
 
   readout.textContent = currentDate.toUTCString().slice(0, 16) + `  ·  ${zodiacSign(sunGeoLon)}`;
 
@@ -669,20 +811,32 @@ function moonPhaseLabel(p) {
   return 'Waning Crescent';
 }
 
+function drawComplicationBezel(c, r) {
+  c.beginPath(); c.arc(0, 0, r + 6, 0, 2 * Math.PI);
+  c.strokeStyle = '#c9a54a'; c.lineWidth = 2; c.stroke();
+  c.beginPath(); c.arc(0, 0, r + 2, 0, 2 * Math.PI);
+  c.strokeStyle = '#5a4326'; c.lineWidth = 1; c.stroke();
+}
+
 function drawMoonPhase(c, cx, cy, r, phase) {
   c.clearRect(0, 0, moonCanvas.width, moonCanvas.height);
   c.save();
   c.translate(cx, cy);
+
   c.beginPath(); c.arc(0, 0, r, 0, 2 * Math.PI);
-  c.fillStyle = '#1e1710'; c.fill();
-  c.strokeStyle = '#5a4326'; c.lineWidth = 1.5; c.stroke();
+  c.fillStyle = '#0e1a24'; c.fill();
+
+  // faint fixed starfield for a night-sky moonphase face
+  const stars = [[-18,-14],[10,-20],[19,3],[-9,17],[4,22],[-20,6],[14,15]];
+  c.fillStyle = 'rgba(236,226,196,0.5)';
+  stars.forEach(([sx, sy]) => { c.beginPath(); c.arc(sx, sy, 0.8, 0, 2 * Math.PI); c.fill(); });
 
   const theta = phase * 2 * Math.PI;
   const rx = r * Math.abs(Math.cos(theta));
   const litRight = phase < 0.5;
 
   c.beginPath();
-  c.fillStyle = '#e9dcb8';
+  c.fillStyle = '#ece2c4';
   if (litRight) {
     c.moveTo(0, -r);
     c.arc(0, 0, r, -Math.PI / 2, Math.PI / 2, false);
@@ -693,27 +847,73 @@ function drawMoonPhase(c, cx, cy, r, phase) {
     c.ellipse(0, 0, rx, r, 0, -Math.PI / 2, Math.PI / 2, phase > 0.75);
   }
   c.closePath(); c.fill();
+
+  drawComplicationBezel(c, r);
   c.restore();
 }
 
+// Power-reserve-style fan gauge for the 19-year Metonic lunisolar cycle.
 function drawMetonicDial(c, cx, cy, r, year) {
   c.clearRect(0, 0, metonicCanvas.width, metonicCanvas.height);
   c.save();
   c.translate(cx, cy);
+
+  c.beginPath(); c.arc(0, 0, r, Math.PI, 2 * Math.PI);
+  c.lineTo(-r * 0.55, r * 0.35); c.closePath();
+  c.fillStyle = '#1e1710'; c.fill();
+
+  const angleFor = y => Math.PI + ((y - 1) / 18) * Math.PI;
+
+  c.beginPath(); c.arc(0, 0, r - 6, Math.PI, 2 * Math.PI); c.strokeStyle = '#4a371f'; c.lineWidth = 3; c.stroke();
+  c.beginPath(); c.arc(0, 0, r - 6, Math.PI, angleFor(year)); c.strokeStyle = '#c9a54a'; c.lineWidth = 3; c.stroke();
+
+  [1, 5, 10, 15, 19].forEach(y => {
+    const a = angleFor(y);
+    c.beginPath();
+    c.moveTo(Math.cos(a) * (r - 11), Math.sin(a) * (r - 11));
+    c.lineTo(Math.cos(a) * (r - 2), Math.sin(a) * (r - 2));
+    c.strokeStyle = '#8a6a35'; c.lineWidth = 1; c.stroke();
+    c.fillStyle = '#9c8b66'; c.font = '8px serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(y, Math.cos(a) * (r - 19), Math.sin(a) * (r - 19));
+  });
+
+  const na = angleFor(year);
+  c.beginPath();
+  c.moveTo(Math.cos(na + Math.PI) * 4, Math.sin(na + Math.PI) * 4);
+  c.lineTo(Math.cos(na) * (r - 8), Math.sin(na) * (r - 8));
+  c.strokeStyle = '#c46a3a'; c.lineWidth = 2; c.stroke();
+  c.beginPath(); c.arc(0, 0, 3, 0, 2 * Math.PI); c.fillStyle = '#c9a54a'; c.fill();
+
+  c.beginPath(); c.arc(0, 0, r + 6, Math.PI, 2 * Math.PI); c.strokeStyle = '#c9a54a'; c.lineWidth = 2; c.stroke();
+  c.beginPath(); c.arc(0, 0, r + 2, Math.PI, 2 * Math.PI); c.strokeStyle = '#5a4326'; c.lineWidth = 1; c.stroke();
+  c.restore();
+}
+
+// Sweeping-hand dial tracking the day of the year against a 12-month chapter ring.
+function drawDayOfYearDial(c, cx, cy, r, dayOfYear, daysInYear) {
+  c.clearRect(0, 0, dayCanvas.width, dayCanvas.height);
+  c.save();
+  c.translate(cx, cy);
+
   c.beginPath(); c.arc(0, 0, r, 0, 2 * Math.PI);
   c.fillStyle = '#1e1710'; c.fill();
-  c.strokeStyle = '#5a4326'; c.lineWidth = 1.5; c.stroke();
-  for (let i = 0; i < 19; i++) {
-    const a = (i / 19) * 2 * Math.PI - Math.PI / 2;
+
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * 2 * Math.PI - Math.PI / 2;
     c.beginPath();
-    c.moveTo(Math.cos(a) * (r - 5), Math.sin(a) * (r - 5));
-    c.lineTo(Math.cos(a) * r, Math.sin(a) * r);
-    c.strokeStyle = (i + 1 === year) ? '#d97a3a' : '#4a371f';
-    c.lineWidth = (i + 1 === year) ? 2.5 : 1;
-    c.stroke();
+    c.moveTo(Math.cos(a) * (r - 6), Math.sin(a) * (r - 6));
+    c.lineTo(Math.cos(a) * (r - 2), Math.sin(a) * (r - 2));
+    c.strokeStyle = '#8a6a35'; c.lineWidth = 1.4; c.stroke();
   }
-  c.fillStyle = '#e9dcb8'; c.font = 'bold 13px serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.fillText(year, 0, 1);
+
+  const a = (dayOfYear / daysInYear) * 2 * Math.PI - Math.PI / 2;
+  c.beginPath();
+  c.moveTo(Math.cos(a + Math.PI) * 5, Math.sin(a + Math.PI) * 5);
+  c.lineTo(Math.cos(a) * (r - 9), Math.sin(a) * (r - 9));
+  c.strokeStyle = '#c46a3a'; c.lineWidth = 2; c.stroke();
+  c.beginPath(); c.arc(0, 0, 3, 0, 2 * Math.PI); c.fillStyle = '#c9a54a'; c.fill();
+
+  drawComplicationBezel(c, r);
   c.restore();
 }
 
@@ -786,6 +986,7 @@ dial.addEventListener('click', e => {
 });
 
 setDate(new Date());
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(render);
 </script>
 </body>
 </html>
