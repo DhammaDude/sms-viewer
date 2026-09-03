@@ -515,7 +515,7 @@ function renderList(positions) {
   planetList.innerHTML = '';
   PLANETS.forEach(p => {
     const pos = positions[p.name];
-    const geoLon = normDeg(rad2deg(Math.atan2(pos.y - earth.y, pos.x - earth.x)));
+    const geoLon = p.name === 'Earth' ? normDeg(earth.lon + 180) : normDeg(rad2deg(Math.atan2(pos.y - earth.y, pos.x - earth.x)));
     const rx = isRetrograde(p, T);
     const row = document.createElement('div');
     row.className = 'planet-row' + (p.name === selected ? ' active' : '');
@@ -535,7 +535,7 @@ function renderDetail(name, positions) {
   const pos = positions[name];
   const earth = positions['Earth'];
   const distEarth = Math.sqrt((pos.x - earth.x) ** 2 + (pos.y - earth.y) ** 2 + (pos.z - earth.z) ** 2);
-  const geoLon = normDeg(rad2deg(Math.atan2(pos.y - earth.y, pos.x - earth.x)));
+  const geoLon = name === 'Earth' ? normDeg(earth.lon + 180) : normDeg(rad2deg(Math.atan2(pos.y - earth.y, pos.x - earth.x)));
   const JD = toJulianDate(currentDate);
   const T = (JD - 2451545.0) / 36525;
   const rx = isRetrograde(p, T);
