@@ -236,6 +236,21 @@ const PLANETS = [
 ];
 
 const ZODIAC = ['♈ Aries','♉ Taurus','♊ Gemini','♋ Cancer','♌ Leo','♍ Virgo','♎ Libra','♏ Scorpio','♐ Sagittarius','♑ Capricorn','♒ Aquarius','♓ Pisces'];
+// Tinted by classical element (fire/earth/air/water) for a pleasing, non-arbitrary sector wheel.
+const ZODIAC_COLORS = [
+  'rgba(196,90,60,0.22)',   // Aries — fire
+  'rgba(107,142,76,0.22)',  // Taurus — earth
+  'rgba(196,178,90,0.22)',  // Gemini — air
+  'rgba(90,130,168,0.22)',  // Cancer — water
+  'rgba(214,122,58,0.22)',  // Leo — fire
+  'rgba(133,148,88,0.22)',  // Virgo — earth
+  'rgba(196,140,150,0.20)', // Libra — air
+  'rgba(129,60,70,0.24)',   // Scorpio — water
+  'rgba(204,140,60,0.22)',  // Sagittarius — fire
+  'rgba(120,98,70,0.24)',   // Capricorn — earth
+  'rgba(90,160,160,0.20)',  // Aquarius — air
+  'rgba(130,110,170,0.22)', // Pisces — water
+];
 
 function deg2rad(d) { return d * Math.PI / 180; }
 function rad2deg(r) { return r * 180 / Math.PI; }
@@ -505,6 +520,8 @@ function render() {
   const positions = {};
   PLANETS.forEach(p => { positions[p.name] = heliocentric(p, T); });
   const earth = positions['Earth'];
+  const sunGeoLon = normDeg(earth.lon + 180);
+  const sunSignIndex = Math.floor(sunGeoLon / 30) % 12;
 
   ctx.clearRect(0, 0, dial.width, dial.height);
   ctx.fillStyle = '#14100a';
@@ -513,22 +530,49 @@ function render() {
   // outer gear bezel
   drawGearRing(ctx, CX, CY, R_MAX + 34, R_MAX + 48, 96);
 
-  // zodiac ring
+  // zodiac ring — sector wedges tinted by classical element, current sign glowing
   ctx.save();
   ctx.translate(CX, CY);
+  const ringInner = R_MAX + 6, ringOuter = R_MAX + 30;
+
+  for (let i = 0; i < 12; i++) {
+    const a0 = deg2rad(i * 30), a1 = deg2rad(i * 30 + 30);
+    const isCurrent = i === sunSignIndex;
+    ctx.beginPath();
+    ctx.arc(0, 0, ringOuter, -a0, -a1, true);
+    ctx.arc(0, 0, ringInner, -a1, -a0, false);
+    ctx.closePath();
+    ctx.fillStyle = isCurrent ? ZODIAC_COLORS[i].replace(/[\d.]+\)$/, '0.55)') : ZODIAC_COLORS[i];
+    ctx.fill();
+    if (isCurrent) {
+      ctx.save();
+      ctx.shadowColor = '#f2c34d';
+      ctx.shadowBlur = 16;
+      ctx.strokeStyle = '#f2c34d';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
   ctx.strokeStyle = '#4a371f';
-  ctx.beginPath(); ctx.arc(0, 0, R_MAX + 30, 0, 2 * Math.PI); ctx.stroke();
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(0, 0, ringOuter, 0, 2 * Math.PI); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, 0, ringInner, 0, 2 * Math.PI); ctx.stroke();
+
   ctx.font = '22px serif';
-  ctx.fillStyle = '#c9a227';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (let i = 0; i < 12; i++) {
     const mid = deg2rad(i * 30 + 15);
-    const lx = Math.cos(mid) * (R_MAX + 16), ly = -Math.sin(mid) * (R_MAX + 16);
+    const lx = Math.cos(mid) * (R_MAX + 18), ly = -Math.sin(mid) * (R_MAX + 18);
+    ctx.fillStyle = i === sunSignIndex ? '#fff3c9' : '#c9a227';
     ctx.fillText(ZODIAC[i][0], lx, ly);
     ctx.beginPath();
     const a = deg2rad(i * 30);
-    ctx.moveTo(Math.cos(a) * (R_MAX + 24), -Math.sin(a) * (R_MAX + 24));
-    ctx.lineTo(Math.cos(a) * (R_MAX + 30), -Math.sin(a) * (R_MAX + 30));
+    ctx.strokeStyle = '#4a371f';
+    ctx.lineWidth = 1;
+    ctx.moveTo(Math.cos(a) * ringInner, -Math.sin(a) * ringInner);
+    ctx.lineTo(Math.cos(a) * ringOuter, -Math.sin(a) * ringOuter);
     ctx.stroke();
   }
   ctx.restore();
@@ -557,8 +601,7 @@ function render() {
   ctx.strokeStyle = '#8a6a35'; ctx.lineWidth = 2; ctx.stroke();
   ctx.restore();
 
-  // geocentric ecliptic longitude of the sun -> zodiac pointer
-  const sunGeoLon = normDeg(earth.lon + 180);
+  // Sun pointer on the zodiac ring (sunGeoLon computed at top of render)
   ctx.save();
   ctx.translate(CX, CY);
   const sa = deg2rad(sunGeoLon);
