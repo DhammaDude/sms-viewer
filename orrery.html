@@ -338,12 +338,12 @@ function render() {
   ctx.translate(CX, CY);
   ctx.strokeStyle = '#4a371f';
   ctx.beginPath(); ctx.arc(0, 0, R_MAX + 30, 0, 2 * Math.PI); ctx.stroke();
-  ctx.font = '13px serif';
+  ctx.font = '22px serif';
   ctx.fillStyle = '#c9a227';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (let i = 0; i < 12; i++) {
     const mid = deg2rad(i * 30 + 15);
-    const lx = Math.cos(mid) * (R_MAX + 18), ly = -Math.sin(mid) * (R_MAX + 18);
+    const lx = Math.cos(mid) * (R_MAX + 16), ly = -Math.sin(mid) * (R_MAX + 16);
     ctx.fillText(ZODIAC[i][0], lx, ly);
     ctx.beginPath();
     const a = deg2rad(i * 30);
