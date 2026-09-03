@@ -345,8 +345,23 @@ function snapshotData(date) {
   };
 }
 
-function downloadJSON(obj, filename) {
-  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+async function downloadJSON(obj, filename) {
+  const text = JSON.stringify(obj, null, 2);
+
+  if (window.claude && typeof window.claude.use === 'function') {
+    try {
+      const downloads = await window.claude.use('downloads');
+      if (downloads) {
+        await downloads.save({ filename, data: text });
+        return;
+      }
+    } catch (err) {
+      if (err && err.code === 'declined') return;
+      // otherwise fall through to the plain-browser download below
+    }
+  }
+
+  const blob = new Blob([text], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = filename; a.click();
