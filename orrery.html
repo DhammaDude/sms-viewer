@@ -127,6 +127,17 @@
       </div>
     </div>
     <div id="datetime-readout">—</div>
+    <div>
+      <label>Data</label>
+      <div class="row">
+        <button class="ctl" id="export-btn" title="Export the current date's full computed state">Export Snapshot</button>
+        <button class="ctl" id="export-range-btn" title="Export a time series across a date range">Export Range</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button class="ctl" id="import-btn" title="Load a previously exported snapshot">Import JSON</button>
+        <input type="file" id="import-input" accept="application/json,.json" style="display:none" />
+      </div>
+    </div>
   </div>
 
   <div id="planet-list"></div>
@@ -262,6 +273,10 @@ const moonCanvas  = document.getElementById('moon-dial');
 const moonCtx     = moonCanvas.getContext('2d');
 const metonicCanvas = document.getElementById('metonic-dial');
 const metonicCtx  = metonicCanvas.getContext('2d');
+const exportBtn   = document.getElementById('export-btn');
+const exportRangeBtn = document.getElementById('export-range-btn');
+const importBtn   = document.getElementById('import-btn');
+const importInput = document.getElementById('import-input');
 
 function setDate(d) {
   currentDate = d;
@@ -289,6 +304,105 @@ function tick() {
   render();
   playTimer = setTimeout(tick, 1000 / 30);
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// JSON import / export (for external data analysis)
+// ─────────────────────────────────────────────────────────────────────────
+function round(n, d = 6) { const k = 10 ** d; return Math.round(n * k) / k; }
+
+function snapshotData(date) {
+  const JD = toJulianDate(date);
+  const T = (JD - 2451545.0) / 36525;
+  const positions = {};
+  PLANETS.forEach(p => { positions[p.name] = heliocentric(p, T); });
+  const earth = positions['Earth'];
+  const sunGeoLon = normDeg(earth.lon + 180);
+  const newMoonRef = 2451550.1, synodic = 29.530588853;
+  const moonPhase = (((JD - newMoonRef) % synodic) + synodic) % synodic / synodic;
+  const metonicYear = ((date.getUTCFullYear() - 2000) % 19 + 19) % 19 + 1;
+
+  const planets = PLANETS.map(p => {
+    const pos = positions[p.name];
+    const isEarth = p.name === 'Earth';
+    const geoLon = isEarth ? sunGeoLon : normDeg(rad2deg(Math.atan2(pos.y - earth.y, pos.x - earth.x)));
+    const distEarth = Math.sqrt((pos.x - earth.x) ** 2 + (pos.y - earth.y) ** 2 + (pos.z - earth.z) ** 2);
+    return {
+      name: p.name,
+      symbol: p.symbol,
+      heliocentric: { xAU: round(pos.x), yAU: round(pos.y), zAU: round(pos.z), distanceAU: round(pos.r), eclipticLongitudeDeg: round(pos.lon) },
+      geocentric: { distanceAU: isEarth ? null : round(distEarth), longitudeDeg: round(geoLon), zodiacSign: zodiacSign(geoLon), retrograde: isEarth ? null : isRetrograde(p, T) },
+      orbit: { semiMajorAxisAU: round(pos.a), eccentricity: round(pos.e, 4), periodYears: round(pos.periodYears, 4), periodDays: Math.round(pos.periodYears * 365.25) },
+    };
+  });
+
+  return {
+    date: date.toISOString(),
+    julianDate: round(JD, 5),
+    sun: { geocentricLongitudeDeg: round(sunGeoLon), zodiacSign: zodiacSign(sunGeoLon) },
+    moon: { phase: round(moonPhase, 4), label: moonPhaseLabel(moonPhase) },
+    metonicCycleYear: metonicYear,
+    planets,
+  };
+}
+
+function downloadJSON(obj, filename) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+exportBtn.addEventListener('click', () => {
+  downloadJSON(snapshotData(currentDate), `antikythera-${currentDate.toISOString().slice(0, 10)}.json`);
+});
+
+exportRangeBtn.addEventListener('click', () => {
+  const today = currentDate.toISOString().slice(0, 10);
+  const startStr = prompt('Start date (YYYY-MM-DD):', today);
+  if (!startStr) return;
+  const endStr = prompt('End date (YYYY-MM-DD):', today);
+  if (!endStr) return;
+  const stepStr = prompt('Step size, in days:', '1');
+  if (!stepStr) return;
+
+  const start = new Date(startStr + 'T00:00:00Z');
+  const end = new Date(endStr + 'T00:00:00Z');
+  const step = Math.max(1, parseInt(stepStr, 10) || 1);
+  if (isNaN(start) || isNaN(end) || end < start) { alert('Invalid date range.'); return; }
+
+  const points = Math.floor((end - start) / 86400000 / step) + 1;
+  if (points > 5000) {
+    alert(`That range would produce ${points.toLocaleString()} points — narrow the range or increase the step (max 5000).`);
+    return;
+  }
+
+  const series = [];
+  for (let t = start.getTime(); t <= end.getTime(); t += step * 86400000) {
+    series.push(snapshotData(new Date(t)));
+  }
+  downloadJSON(series, `antikythera-series-${startStr}_to_${endStr}.json`);
+});
+
+importBtn.addEventListener('click', () => importInput.click());
+importInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      const first = Array.isArray(parsed) ? parsed[0] : parsed;
+      if (!first || !first.date) throw new Error('missing "date" field');
+      if (Array.isArray(parsed)) alert(`Loaded a time series with ${parsed.length} snapshots. Jumping the dial to its first date; use the exported file itself for analysis in Python/Excel/etc.`);
+      setDate(new Date(first.date));
+    } catch (err) {
+      alert('Could not load this file as an Antikythera snapshot/series export: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  importInput.value = '';
+});
 
 // ─────────────────────────────────────────────────────────────────────────
 // Rendering
