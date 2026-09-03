@@ -10,6 +10,7 @@
 
   :root {
     --bg: #120e08;
+    --bg-glow: #241a0d;
     --panel: #1b140c;
     --panel2: #241b10;
     --border: #55401f;
@@ -21,13 +22,43 @@
     --muted: #9c8b66;
     --accent: #c46a3a;
     --danger: #a8402b;
+    --input-bg: #0f0b06;
+    --ctl-hover-bg: #34260f;
+    --ctl-active-text: #241b10;
+    --row-active-bg: #2c2011;
+    --aperture-bg-1: #2a2013;
+    --aperture-bg-2: #17110a;
+    --aperture-border: #6e5220;
     --font-display: "Cinzel", "Cormorant Garamond", Georgia, serif;
     --font-heading: "Cormorant Garamond", Georgia, serif;
     --font-body: "Spectral", "Iowan Old Style", Georgia, serif;
   }
 
+  :root[data-theme="light"] {
+    --bg: #eef0f2;
+    --bg-glow: #ffffff;
+    --panel: #f8f9fa;
+    --panel2: #e9ebee;
+    --border: #c4cbd1;
+    --brass: #55606b;
+    --brass-dim: #7b848c;
+    --ivory: #ffffff;
+    --ink: #202427;
+    --parchment: #2a2f34;
+    --muted: #6b747c;
+    --accent: #2f5f7a;
+    --danger: #a8402b;
+    --input-bg: #ffffff;
+    --ctl-hover-bg: #dde1e5;
+    --ctl-active-text: #ffffff;
+    --row-active-bg: #e3e7ea;
+    --aperture-bg-1: #c9cdd1;
+    --aperture-bg-2: #9aa3ab;
+    --aperture-border: #6b747c;
+  }
+
   body {
-    background: radial-gradient(ellipse at 50% 0%, #241a0d 0%, var(--bg) 70%);
+    background: radial-gradient(ellipse at 50% 0%, var(--bg-glow) 0%, var(--bg) 70%);
     color: var(--parchment);
     font-family: var(--font-body);
     font-size: 14px;
@@ -60,7 +91,7 @@
   }
   .row { display: flex; gap: 8px; align-items: center; }
   input[type="date"], select {
-    flex: 1; background: #0f0b06; border: 1px solid var(--border); color: var(--parchment);
+    flex: 1; background: var(--input-bg); border: 1px solid var(--border); color: var(--parchment);
     padding: 6px 8px; border-radius: 4px; font-size: 13px; font-family: var(--font-body);
   }
   button.ctl {
@@ -68,8 +99,9 @@
     padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-family: var(--font-display);
     letter-spacing: .04em; transition: background .15s;
   }
-  button.ctl:hover { background: #34260f; }
-  button.ctl.active { background: var(--brass); color: #241b10; }
+  button.ctl:hover { background: var(--ctl-hover-bg); }
+  button.ctl.active { background: var(--brass); color: var(--ctl-active-text); }
+  #theme-toggle { font-family: var(--font-display); font-size: 11px; letter-spacing: .06em; }
   #datetime-readout { font-family: var(--font-body); font-size: 12px; color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }
 
   #planet-list { flex: 1; overflow-y: auto; padding: 6px 0; }
@@ -78,7 +110,7 @@
     border-left: 3px solid transparent; transition: background .12s;
   }
   .planet-row:hover { background: var(--panel2); }
-  .planet-row.active { background: #2c2011; border-left-color: var(--accent); }
+  .planet-row.active { background: var(--row-active-bg); border-left-color: var(--accent); }
   .p-glyph { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; border: 1px solid var(--border); }
   .p-info { flex: 1; min-width: 0; }
   .p-name { font-family: var(--font-heading); font-weight: 600; font-size: 15px; }
@@ -108,13 +140,13 @@
   }
   #date-aperture {
     width: 90px; height: 90px; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    border-radius: 50%; background: radial-gradient(circle at 35% 30%, #2a2013 0%, #17110a 70%);
-    border: 2px solid var(--brass-dim); box-shadow: inset 0 0 10px rgba(0,0,0,.6);
+    border-radius: 50%; background: radial-gradient(circle at 35% 30%, var(--aperture-bg-1) 0%, var(--aperture-bg-2) 70%);
+    border: 2px solid var(--brass-dim); box-shadow: inset 0 0 10px rgba(0,0,0,.25);
   }
   #date-aperture-window {
     background: var(--ivory); color: var(--ink); font-family: var(--font-display); font-weight: 600;
     font-size: 15px; letter-spacing: .04em; padding: 5px 10px; border-radius: 3px;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,.4); border: 1px solid #6e5220;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,.25); border: 1px solid var(--aperture-border);
   }
   #date-aperture-year { font-family: var(--font-body); font-size: 10px; color: var(--muted); margin-top: 5px; }
 
@@ -154,7 +186,10 @@
 
 <div id="sidebar">
   <div id="sidebar-header">
-    <h1>Antikythera</h1>
+    <div class="row" style="justify-content: space-between; align-items: flex-start;">
+      <h1>Antikythera</h1>
+      <button class="ctl" id="theme-toggle" title="Switch case material">Steel</button>
+    </div>
     <div class="sub">An orrery complication, nine spheres</div>
   </div>
 
@@ -284,21 +319,68 @@ const PLANETS = [
 ];
 
 const ZODIAC = ['♈ Aries','♉ Taurus','♊ Gemini','♋ Cancer','♌ Leo','♍ Virgo','♎ Libra','♏ Scorpio','♐ Sagittarius','♑ Capricorn','♒ Aquarius','♓ Pisces'];
-// Tinted by classical element (fire/earth/air/water) for a pleasing, non-arbitrary sector wheel.
-const ZODIAC_COLORS = [
-  'rgba(196,90,60,0.22)',   // Aries — fire
-  'rgba(107,142,76,0.22)',  // Taurus — earth
-  'rgba(196,178,90,0.22)',  // Gemini — air
-  'rgba(90,130,168,0.22)',  // Cancer — water
-  'rgba(214,122,58,0.22)',  // Leo — fire
-  'rgba(133,148,88,0.22)',  // Virgo — earth
-  'rgba(196,140,150,0.20)', // Libra — air
-  'rgba(129,60,70,0.24)',   // Scorpio — water
-  'rgba(204,140,60,0.22)',  // Sagittarius — fire
-  'rgba(120,98,70,0.24)',   // Capricorn — earth
-  'rgba(90,160,160,0.20)',  // Aquarius — air
-  'rgba(130,110,170,0.22)', // Pisces — water
-];
+
+// ─────────────────────────────────────────────────────────────────────────
+// Case material themes — "brass" (dark lacquer) and "steel" (white/stainless)
+// ─────────────────────────────────────────────────────────────────────────
+const THEMES = {
+  brass: {
+    caseBg: '#120e08',
+    zodiacAlt: ['rgba(201,165,74,0.16)', 'rgba(201,165,74,0.045)'],
+    currentGlow: '#f2c34d',
+    currentFill: 'rgba(242,195,77,0.55)',
+    metalDark: '#4a371f',
+    metalMid: '#8a6a35',
+    metalBright: '#c9a54a',
+    metalDeepest: '#2b2010',
+    fluteLight: 'rgba(255,244,214,0.22)',
+    fluteDark: 'rgba(0,0,0,0.28)',
+    caseGradStops: ['#4a3717', '#d8b45e', '#5c451f'],
+    brandText: '#f2e6bf',
+    glyphDefault: '#c9a227',
+    glyphCurrent: '#fff3c9',
+    fineTick: 'rgba(74,55,31,0.8)',
+    orbitRing: 'rgba(201,162,39,0.18)',
+    accentHand: '#c46a3a',
+    selectedStroke: '#fff3c9',
+    defaultStroke: '#1d160d',
+    subdialFace: '#1e1710',
+    subdialDim: '#9c8b66',
+  },
+  steel: {
+    caseBg: '#e4e7ea',
+    zodiacAlt: ['rgba(60,70,80,0.09)', 'rgba(255,255,255,0.6)'],
+    currentGlow: '#b8862c',
+    currentFill: 'rgba(184,134,44,0.4)',
+    metalDark: '#aab2b9',
+    metalMid: '#7b848c',
+    metalBright: '#c4cbd1',
+    metalDeepest: '#3a3f44',
+    fluteLight: 'rgba(255,255,255,0.75)',
+    fluteDark: 'rgba(58,63,68,0.30)',
+    caseGradStops: ['#9aa3ab', '#ffffff', '#8b95a0'],
+    brandText: '#2a2f34',
+    glyphDefault: '#5b6570',
+    glyphCurrent: '#201a10',
+    fineTick: 'rgba(120,130,138,0.85)',
+    orbitRing: 'rgba(70,80,90,0.22)',
+    accentHand: '#2f5f7a',
+    selectedStroke: '#201a10',
+    defaultStroke: '#f4f5f6',
+    subdialFace: '#1c2024',
+    subdialDim: '#8b95a0',
+  },
+};
+
+let currentThemeName = localStorage.getItem('antikythera-theme') || 'brass';
+function theme() { return THEMES[currentThemeName]; }
+
+function applyTheme() {
+  if (currentThemeName === 'steel') document.documentElement.setAttribute('data-theme', 'light');
+  else document.documentElement.removeAttribute('data-theme');
+  themeToggleBtn.textContent = currentThemeName === 'brass' ? 'Steel Case' : 'Brass Case';
+  localStorage.setItem('antikythera-theme', currentThemeName);
+}
 
 function deg2rad(d) { return d * Math.PI / 180; }
 function rad2deg(r) { return r * 180 / Math.PI; }
@@ -388,6 +470,13 @@ const jsonModalTextarea = document.getElementById('json-modal-textarea');
 const jsonModalCopyBtn = document.getElementById('json-modal-copy');
 const jsonModalDownloadBtn = document.getElementById('json-modal-download');
 const jsonModalCloseBtn = document.getElementById('json-modal-close');
+const themeToggleBtn = document.getElementById('theme-toggle');
+applyTheme();
+themeToggleBtn.addEventListener('click', () => {
+  currentThemeName = currentThemeName === 'brass' ? 'steel' : 'brass';
+  applyTheme();
+  render();
+});
 
 function setDate(d) {
   currentDate = d;
@@ -552,10 +641,10 @@ function scaleR(auDist) {
   return R_MIN + t * (R_MAX - R_MIN);
 }
 
-function drawGearRing(c, cx, cy, rIn, rOut, teeth) {
+function drawGearRing(c, cx, cy, rIn, rOut, teeth, th) {
   c.save();
   c.translate(cx, cy);
-  c.fillStyle = '#4a371f';
+  c.fillStyle = th.metalDark;
   for (let i = 0; i < teeth; i++) {
     const a0 = (i / teeth) * 2 * Math.PI;
     const a1 = a0 + (2 * Math.PI / teeth) * 0.55;
@@ -569,13 +658,13 @@ function drawGearRing(c, cx, cy, rIn, rOut, teeth) {
 }
 
 // Polished brass case ring with fine radial flutes, like a pocket-watch case back.
-function drawFlutedRing(c, cx, cy, rIn, rOut, flutes) {
+function drawFlutedRing(c, cx, cy, rIn, rOut, flutes, th) {
   c.save();
   c.translate(cx, cy);
   const bandGrad = c.createRadialGradient(0, 0, rIn, 0, 0, rOut);
-  bandGrad.addColorStop(0, '#4a3717');
-  bandGrad.addColorStop(0.5, '#d8b45e');
-  bandGrad.addColorStop(1, '#5c451f');
+  bandGrad.addColorStop(0, th.caseGradStops[0]);
+  bandGrad.addColorStop(0.5, th.caseGradStops[1]);
+  bandGrad.addColorStop(1, th.caseGradStops[2]);
   c.beginPath();
   c.arc(0, 0, rOut, 0, 2 * Math.PI);
   c.arc(0, 0, rIn, 0, 2 * Math.PI, true);
@@ -583,14 +672,14 @@ function drawFlutedRing(c, cx, cy, rIn, rOut, flutes) {
   c.fill('evenodd');
   for (let i = 0; i < flutes; i++) {
     const a = (i / flutes) * 2 * Math.PI;
-    c.strokeStyle = i % 2 === 0 ? 'rgba(0,0,0,0.28)' : 'rgba(255,244,214,0.22)';
+    c.strokeStyle = i % 2 === 0 ? th.fluteDark : th.fluteLight;
     c.lineWidth = 1;
     c.beginPath();
     c.moveTo(Math.cos(a) * rIn, Math.sin(a) * rIn);
     c.lineTo(Math.cos(a) * rOut, Math.sin(a) * rOut);
     c.stroke();
   }
-  c.strokeStyle = '#2b2010'; c.lineWidth = 2;
+  c.strokeStyle = th.metalDeepest; c.lineWidth = 2;
   c.beginPath(); c.arc(0, 0, rOut, 0, 2 * Math.PI); c.stroke();
   c.beginPath(); c.arc(0, 0, rIn, 0, 2 * Math.PI); c.stroke();
   c.restore();
@@ -628,19 +717,21 @@ function render() {
   const sunGeoLon = normDeg(earth.lon + 180);
   const sunSignIndex = Math.floor(sunGeoLon / 30) % 12;
 
+  const th = theme();
+
   ctx.clearRect(0, 0, dial.width, dial.height);
-  ctx.fillStyle = '#120e08';
+  ctx.fillStyle = th.caseBg;
   ctx.fillRect(0, 0, dial.width, dial.height);
 
-  // polished brass case ring (outermost)
-  drawFlutedRing(ctx, CX, CY, R_MAX + 52, R_MAX + 68, 140);
+  // polished case ring (outermost)
+  drawFlutedRing(ctx, CX, CY, R_MAX + 52, R_MAX + 68, 140, th);
 
   // movement ring — gear teeth plus engraved dial branding
-  drawGearRing(ctx, CX, CY, R_MAX + 34, R_MAX + 48, 96);
-  drawArcText(ctx, CX, CY, R_MAX + 41, 'ANTIKYTHERA', 90, 56, '#f2e6bf', '600 12px Cinzel, serif');
-  drawArcText(ctx, CX, CY, R_MAX + 41, 'CAL. Θ · IX', 270, 44, '#f2e6bf', '600 11px Cinzel, serif');
+  drawGearRing(ctx, CX, CY, R_MAX + 34, R_MAX + 48, 96, th);
+  drawArcText(ctx, CX, CY, R_MAX + 41, 'ANTIKYTHERA', 90, 56, th.brandText, '600 12px Cinzel, serif');
+  drawArcText(ctx, CX, CY, R_MAX + 41, 'CAL. Θ · IX', 270, 44, th.brandText, '600 11px Cinzel, serif');
 
-  // zodiac ring — sector wedges tinted by classical element, current sign glowing
+  // zodiac ring — two alternating tones, current sign glowing
   ctx.save();
   ctx.translate(CX, CY);
   const ringInner = R_MAX + 6, ringOuter = R_MAX + 30;
@@ -652,20 +743,20 @@ function render() {
     ctx.arc(0, 0, ringOuter, -a0, -a1, true);
     ctx.arc(0, 0, ringInner, -a1, -a0, false);
     ctx.closePath();
-    ctx.fillStyle = isCurrent ? ZODIAC_COLORS[i].replace(/[\d.]+\)$/, '0.55)') : ZODIAC_COLORS[i];
+    ctx.fillStyle = isCurrent ? th.currentFill : th.zodiacAlt[i % 2];
     ctx.fill();
     if (isCurrent) {
       ctx.save();
-      ctx.shadowColor = '#f2c34d';
+      ctx.shadowColor = th.currentGlow;
       ctx.shadowBlur = 16;
-      ctx.strokeStyle = '#f2c34d';
+      ctx.strokeStyle = th.currentGlow;
       ctx.lineWidth = 2;
       ctx.stroke();
       ctx.restore();
     }
   }
 
-  ctx.strokeStyle = '#4a371f';
+  ctx.strokeStyle = th.metalDark;
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.arc(0, 0, ringOuter, 0, 2 * Math.PI); ctx.stroke();
   ctx.beginPath(); ctx.arc(0, 0, ringInner, 0, 2 * Math.PI); ctx.stroke();
@@ -675,18 +766,18 @@ function render() {
   for (let i = 0; i < 12; i++) {
     const mid = deg2rad(i * 30 + 15);
     const lx = Math.cos(mid) * (R_MAX + 18), ly = -Math.sin(mid) * (R_MAX + 18);
-    ctx.fillStyle = i === sunSignIndex ? '#fff3c9' : '#c9a227';
+    ctx.fillStyle = i === sunSignIndex ? th.glyphCurrent : th.glyphDefault;
     ctx.fillText(ZODIAC[i][0], lx, ly);
     ctx.beginPath();
     const a = deg2rad(i * 30);
-    ctx.strokeStyle = '#4a371f';
+    ctx.strokeStyle = th.metalDark;
     ctx.lineWidth = 1;
     ctx.moveTo(Math.cos(a) * ringInner, -Math.sin(a) * ringInner);
     ctx.lineTo(Math.cos(a) * ringOuter, -Math.sin(a) * ringOuter);
     ctx.stroke();
   }
   // fine minute-track ticks, watch-chapter-ring style
-  ctx.strokeStyle = 'rgba(74,55,31,0.8)';
+  ctx.strokeStyle = th.fineTick;
   ctx.lineWidth = 1;
   for (let i = 0; i < 120; i++) {
     if (i % 10 === 0) continue; // skip where the 12 major ticks already fall
@@ -705,7 +796,7 @@ function render() {
     const rr = scaleR(positions[p.name].a);
     ctx.beginPath();
     ctx.arc(0, 0, rr, 0, 2 * Math.PI);
-    ctx.strokeStyle = 'rgba(201,162,39,0.18)';
+    ctx.strokeStyle = th.orbitRing;
     ctx.lineWidth = 1;
     ctx.stroke();
   });
@@ -715,21 +806,21 @@ function render() {
   ctx.save();
   ctx.translate(CX, CY);
   ctx.beginPath(); ctx.arc(0, 0, 24, 0, 2 * Math.PI);
-  ctx.strokeStyle = '#8a6a35'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.strokeStyle = th.metalMid; ctx.lineWidth = 1.5; ctx.stroke();
   [0, 90, 180, 270].forEach(deg => {
     const a = deg2rad(deg);
     const sx = Math.cos(a) * 24, sy = Math.sin(a) * 24;
     ctx.beginPath(); ctx.arc(sx, sy, 2.2, 0, 2 * Math.PI);
-    ctx.fillStyle = '#2b2010'; ctx.fill();
+    ctx.fillStyle = th.metalDeepest; ctx.fill();
     ctx.beginPath(); ctx.moveTo(sx - 1.6, sy); ctx.lineTo(sx + 1.6, sy);
-    ctx.strokeStyle = '#8a6a35'; ctx.lineWidth = 0.6; ctx.stroke();
+    ctx.strokeStyle = th.metalMid; ctx.lineWidth = 0.6; ctx.stroke();
   });
   const sunGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, 22);
   sunGrad.addColorStop(0, '#fff3c9');
   sunGrad.addColorStop(1, '#c46a3a');
   ctx.beginPath(); ctx.arc(0, 0, 16, 0, 2 * Math.PI);
   ctx.fillStyle = sunGrad; ctx.fill();
-  ctx.strokeStyle = '#8a6a35'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.strokeStyle = th.metalMid; ctx.lineWidth = 2; ctx.stroke();
   ctx.beginPath(); ctx.arc(-5, -5, 3, 0, 2 * Math.PI);
   ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fill();
   ctx.restore();
@@ -738,12 +829,12 @@ function render() {
   ctx.save();
   ctx.translate(CX, CY);
   const sa = deg2rad(sunGeoLon);
-  ctx.strokeStyle = '#c46a3a'; ctx.lineWidth = 2;
+  ctx.strokeStyle = th.accentHand; ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(Math.cos(sa) * (R_MAX + 30), -Math.sin(sa) * (R_MAX + 30));
   ctx.lineTo(Math.cos(sa) * (R_MAX + 60), -Math.sin(sa) * (R_MAX + 60));
   ctx.stroke();
-  ctx.fillStyle = '#c46a3a';
+  ctx.fillStyle = th.accentHand;
   ctx.font = 'bold 13px serif'; ctx.textAlign = 'center';
   ctx.fillText('☉', Math.cos(sa) * (R_MAX + 76), -Math.sin(sa) * (R_MAX + 76) + 4);
   ctx.restore();
@@ -761,7 +852,7 @@ function render() {
     ctx.arc(x, y, p.name === selected ? 11 : 8, 0, 2 * Math.PI);
     ctx.fillStyle = p.color;
     ctx.fill();
-    ctx.strokeStyle = p.name === selected ? '#fff3c9' : '#1d160d';
+    ctx.strokeStyle = p.name === selected ? th.selectedStroke : th.defaultStroke;
     ctx.lineWidth = p.name === selected ? 2.5 : 1.5;
     ctx.stroke();
 
@@ -777,17 +868,17 @@ function render() {
   const newMoonRef = 2451550.1; // 2000-01-06 18:14 UT
   const synodic = 29.530588853;
   const moonPhase = (((JD - newMoonRef) % synodic) + synodic) % synodic / synodic;
-  drawMoonPhase(moonCtx, 45, 45, 34, moonPhase);
+  drawMoonPhase(moonCtx, 45, 45, 34, moonPhase, th);
   moonCaption.textContent = moonPhaseLabel(moonPhase);
 
   const metonicYear = ((currentDate.getUTCFullYear() - 2000) % 19 + 19) % 19 + 1;
-  drawMetonicDial(metonicCtx, 45, 55, 36, metonicYear);
+  drawMetonicDial(metonicCtx, 45, 55, 36, metonicYear, th);
   metonicCaption.textContent = `Year ${metonicYear} of 19`;
 
   const startOfYear = Date.UTC(currentDate.getUTCFullYear(), 0, 1);
   const daysInYear = (Date.UTC(currentDate.getUTCFullYear() + 1, 0, 1) - startOfYear) / 86400000;
   const dayOfYear = Math.floor((Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), currentDate.getUTCDate()) - startOfYear) / 86400000) + 1;
-  drawDayOfYearDial(dayCtx, 45, 45, 36, dayOfYear, daysInYear);
+  drawDayOfYearDial(dayCtx, 45, 45, 36, dayOfYear, daysInYear, th);
   dayCaption.textContent = `Day ${dayOfYear} of ${daysInYear}`;
 
   const MONTH_ABBR = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
@@ -811,14 +902,14 @@ function moonPhaseLabel(p) {
   return 'Waning Crescent';
 }
 
-function drawComplicationBezel(c, r) {
+function drawComplicationBezel(c, r, th) {
   c.beginPath(); c.arc(0, 0, r + 6, 0, 2 * Math.PI);
-  c.strokeStyle = '#c9a54a'; c.lineWidth = 2; c.stroke();
+  c.strokeStyle = th.metalBright; c.lineWidth = 2; c.stroke();
   c.beginPath(); c.arc(0, 0, r + 2, 0, 2 * Math.PI);
-  c.strokeStyle = '#5a4326'; c.lineWidth = 1; c.stroke();
+  c.strokeStyle = th.metalMid; c.lineWidth = 1; c.stroke();
 }
 
-function drawMoonPhase(c, cx, cy, r, phase) {
+function drawMoonPhase(c, cx, cy, r, phase, th) {
   c.clearRect(0, 0, moonCanvas.width, moonCanvas.height);
   c.save();
   c.translate(cx, cy);
@@ -826,7 +917,7 @@ function drawMoonPhase(c, cx, cy, r, phase) {
   c.beginPath(); c.arc(0, 0, r, 0, 2 * Math.PI);
   c.fillStyle = '#0e1a24'; c.fill();
 
-  // faint fixed starfield for a night-sky moonphase face
+  // faint fixed starfield for a night-sky moonphase face (kept dark in both themes, like a "panda dial" register)
   const stars = [[-18,-14],[10,-20],[19,3],[-9,17],[4,22],[-20,6],[14,15]];
   c.fillStyle = 'rgba(236,226,196,0.5)';
   stars.forEach(([sx, sy]) => { c.beginPath(); c.arc(sx, sy, 0.8, 0, 2 * Math.PI); c.fill(); });
@@ -848,32 +939,32 @@ function drawMoonPhase(c, cx, cy, r, phase) {
   }
   c.closePath(); c.fill();
 
-  drawComplicationBezel(c, r);
+  drawComplicationBezel(c, r, th);
   c.restore();
 }
 
 // Power-reserve-style fan gauge for the 19-year Metonic lunisolar cycle.
-function drawMetonicDial(c, cx, cy, r, year) {
+function drawMetonicDial(c, cx, cy, r, year, th) {
   c.clearRect(0, 0, metonicCanvas.width, metonicCanvas.height);
   c.save();
   c.translate(cx, cy);
 
   c.beginPath(); c.arc(0, 0, r, Math.PI, 2 * Math.PI);
   c.lineTo(-r * 0.55, r * 0.35); c.closePath();
-  c.fillStyle = '#1e1710'; c.fill();
+  c.fillStyle = th.subdialFace; c.fill();
 
   const angleFor = y => Math.PI + ((y - 1) / 18) * Math.PI;
 
-  c.beginPath(); c.arc(0, 0, r - 6, Math.PI, 2 * Math.PI); c.strokeStyle = '#4a371f'; c.lineWidth = 3; c.stroke();
-  c.beginPath(); c.arc(0, 0, r - 6, Math.PI, angleFor(year)); c.strokeStyle = '#c9a54a'; c.lineWidth = 3; c.stroke();
+  c.beginPath(); c.arc(0, 0, r - 6, Math.PI, 2 * Math.PI); c.strokeStyle = th.metalDark; c.lineWidth = 3; c.stroke();
+  c.beginPath(); c.arc(0, 0, r - 6, Math.PI, angleFor(year)); c.strokeStyle = th.metalBright; c.lineWidth = 3; c.stroke();
 
   [1, 5, 10, 15, 19].forEach(y => {
     const a = angleFor(y);
     c.beginPath();
     c.moveTo(Math.cos(a) * (r - 11), Math.sin(a) * (r - 11));
     c.lineTo(Math.cos(a) * (r - 2), Math.sin(a) * (r - 2));
-    c.strokeStyle = '#8a6a35'; c.lineWidth = 1; c.stroke();
-    c.fillStyle = '#9c8b66'; c.font = '8px serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.strokeStyle = th.metalMid; c.lineWidth = 1; c.stroke();
+    c.fillStyle = th.subdialDim; c.font = '8px serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
     c.fillText(y, Math.cos(a) * (r - 19), Math.sin(a) * (r - 19));
   });
 
@@ -881,39 +972,39 @@ function drawMetonicDial(c, cx, cy, r, year) {
   c.beginPath();
   c.moveTo(Math.cos(na + Math.PI) * 4, Math.sin(na + Math.PI) * 4);
   c.lineTo(Math.cos(na) * (r - 8), Math.sin(na) * (r - 8));
-  c.strokeStyle = '#c46a3a'; c.lineWidth = 2; c.stroke();
+  c.strokeStyle = th.accentHand; c.lineWidth = 2; c.stroke();
   c.beginPath(); c.arc(0, 0, 3, 0, 2 * Math.PI); c.fillStyle = '#c9a54a'; c.fill();
 
-  c.beginPath(); c.arc(0, 0, r + 6, Math.PI, 2 * Math.PI); c.strokeStyle = '#c9a54a'; c.lineWidth = 2; c.stroke();
-  c.beginPath(); c.arc(0, 0, r + 2, Math.PI, 2 * Math.PI); c.strokeStyle = '#5a4326'; c.lineWidth = 1; c.stroke();
+  c.beginPath(); c.arc(0, 0, r + 6, Math.PI, 2 * Math.PI); c.strokeStyle = th.metalBright; c.lineWidth = 2; c.stroke();
+  c.beginPath(); c.arc(0, 0, r + 2, Math.PI, 2 * Math.PI); c.strokeStyle = th.metalMid; c.lineWidth = 1; c.stroke();
   c.restore();
 }
 
 // Sweeping-hand dial tracking the day of the year against a 12-month chapter ring.
-function drawDayOfYearDial(c, cx, cy, r, dayOfYear, daysInYear) {
+function drawDayOfYearDial(c, cx, cy, r, dayOfYear, daysInYear, th) {
   c.clearRect(0, 0, dayCanvas.width, dayCanvas.height);
   c.save();
   c.translate(cx, cy);
 
   c.beginPath(); c.arc(0, 0, r, 0, 2 * Math.PI);
-  c.fillStyle = '#1e1710'; c.fill();
+  c.fillStyle = th.subdialFace; c.fill();
 
   for (let i = 0; i < 12; i++) {
     const a = (i / 12) * 2 * Math.PI - Math.PI / 2;
     c.beginPath();
     c.moveTo(Math.cos(a) * (r - 6), Math.sin(a) * (r - 6));
     c.lineTo(Math.cos(a) * (r - 2), Math.sin(a) * (r - 2));
-    c.strokeStyle = '#8a6a35'; c.lineWidth = 1.4; c.stroke();
+    c.strokeStyle = th.metalMid; c.lineWidth = 1.4; c.stroke();
   }
 
   const a = (dayOfYear / daysInYear) * 2 * Math.PI - Math.PI / 2;
   c.beginPath();
   c.moveTo(Math.cos(a + Math.PI) * 5, Math.sin(a + Math.PI) * 5);
   c.lineTo(Math.cos(a) * (r - 9), Math.sin(a) * (r - 9));
-  c.strokeStyle = '#c46a3a'; c.lineWidth = 2; c.stroke();
+  c.strokeStyle = th.accentHand; c.lineWidth = 2; c.stroke();
   c.beginPath(); c.arc(0, 0, 3, 0, 2 * Math.PI); c.fillStyle = '#c9a54a'; c.fill();
 
-  drawComplicationBezel(c, r);
+  drawComplicationBezel(c, r, th);
   c.restore();
 }
 
