@@ -289,8 +289,6 @@ function tick() {
   playTimer = setTimeout(tick, 1000 / 30);
 }
 
-setDate(new Date());
-
 // ─────────────────────────────────────────────────────────────────────────
 // Rendering
 // ─────────────────────────────────────────────────────────────────────────
@@ -564,7 +562,7 @@ dial.addEventListener('click', e => {
   if (best) { selected = best; render(); }
 });
 
-render();
+setDate(new Date());
 </script>
 </body>
 </html>
