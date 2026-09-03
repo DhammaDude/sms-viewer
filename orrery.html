@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Digital Antikythera Mechanism</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #14100a;
+    --panel: #1d160d;
+    --panel2: #241b10;
+    --border: #4a371f;
+    --brass: #c9a227;
+    --brass-dim: #8a6a35;
+    --parchment: #e9dcb8;
+    --muted: #9c8b66;
+    --accent: #d97a3a;
+    --danger: #d1583f;
+  }
+
+  body {
+    background: radial-gradient(ellipse at 50% 0%, #221a10 0%, var(--bg) 70%);
+    color: var(--parchment);
+    font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    font-size: 14px;
+    height: 100dvh;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ── Sidebar ── */
+  #sidebar {
+    width: 320px; min-width: 260px;
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; overflow: hidden;
+    background: var(--panel);
+  }
+  #sidebar-header { padding: 18px 18px 12px; border-bottom: 1px solid var(--border); }
+  #sidebar-header h1 { font-size: 17px; font-weight: 700; letter-spacing: .03em; color: var(--brass); }
+  #sidebar-header .sub { font-size: 11px; color: var(--muted); margin-top: 4px; letter-spacing: .06em; text-transform: uppercase; }
+
+  .controls { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+  .controls label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; display: block; margin-bottom: 4px; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  input[type="date"], select {
+    flex: 1; background: #0f0b06; border: 1px solid var(--border); color: var(--parchment);
+    padding: 6px 8px; border-radius: 6px; font-size: 13px; font-family: inherit;
+  }
+  button.ctl {
+    background: var(--panel2); border: 1px solid var(--border); color: var(--brass);
+    padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; font-family: inherit;
+    transition: background .15s;
+  }
+  button.ctl:hover { background: #34260f; }
+  button.ctl.active { background: var(--brass); color: #241b10; }
+  #datetime-readout { font-size: 12px; color: var(--muted); text-align: center; }
+
+  #planet-list { flex: 1; overflow-y: auto; padding: 6px 0; }
+  .planet-row {
+    display: flex; align-items: center; gap: 10px; padding: 9px 18px; cursor: pointer;
+    border-left: 3px solid transparent; transition: background .12s;
+  }
+  .planet-row:hover { background: var(--panel2); }
+  .planet-row.active { background: #2c2011; border-left-color: var(--accent); }
+  .p-glyph { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; border: 1px solid var(--border); }
+  .p-info { flex: 1; min-width: 0; }
+  .p-name { font-weight: 700; font-size: 13px; }
+  .p-meta { font-size: 11px; color: var(--muted); }
+  .p-rx { font-size: 10px; color: var(--danger); font-weight: 700; margin-left: 4px; }
+
+  #detail-panel { border-top: 1px solid var(--border); padding: 14px 18px; font-size: 12px; color: var(--muted); min-height: 92px; }
+  #detail-panel h3 { color: var(--brass); font-size: 13px; margin-bottom: 6px; }
+  #detail-panel div { line-height: 1.6; }
+
+  /* ── Main dial area ── */
+  #main { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: auto; padding: 20px; }
+  #dial-wrap { position: relative; }
+  canvas { display: block; }
+
+  #subdials { position: absolute; bottom: 24px; left: 24px; display: flex; gap: 14px; }
+  .subdial-label { text-align: center; font-size: 10px; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; margin-top: 4px; }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <div id="sidebar-header">
+    <h1>⚙ Digital Antikythera</h1>
+    <div class="sub">A mechanism of nine wandering stars</div>
+  </div>
+
+  <div class="controls">
+    <div>
+      <label>Date</label>
+      <div class="row">
+        <input type="date" id="date-input" />
+        <button class="ctl" id="today-btn">Today</button>
+      </div>
+    </div>
+    <div>
+      <label>Time Flow</label>
+      <div class="row">
+        <button class="ctl" id="play-btn">▶ Play</button>
+        <select id="speed-select">
+          <option value="86400000">1 day / sec</option>
+          <option value="604800000">1 week / sec</option>
+          <option value="2629800000" selected>1 month / sec</option>
+          <option value="31557600000">1 year / sec</option>
+          <option value="315576000000">10 years / sec</option>
+        </select>
+      </div>
+    </div>
+    <div id="datetime-readout">—</div>
+  </div>
+
+  <div id="planet-list"></div>
+
+  <div id="detail-panel">
+    <h3>Select a body</h3>
+    <div>Click a planet on the dial or in the list to see its details.</div>
+  </div>
+</div>
+
+<div id="main">
+  <div id="dial-wrap">
+    <canvas id="dial" width="760" height="760"></canvas>
+    <div id="subdials">
+      <div>
+        <canvas id="moon-dial" width="90" height="90"></canvas>
+        <div class="subdial-label">Lunar Phase</div>
+      </div>
+      <div>
+        <canvas id="metonic-dial" width="90" height="90"></canvas>
+        <div class="subdial-label">Metonic Cycle</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────
+// Orbital elements (J2000 + rate per Julian century), Standish approximate
+// heliocentric ecliptic Keplerian elements, valid ~1800-2050.
+// a: AU, e: eccentricity, I/L/peri/node: degrees.
+// ─────────────────────────────────────────────────────────────────────────
+const PLANETS = [
+  { name: 'Mercury', symbol: '☿', color: '#b7b0a2',
+    a: 0.38709927, da: 0.00000037, e: 0.20563593, de: 0.00001906, I: 7.00497902, dI: -0.00594749,
+    L: 252.25032350, dL: 149472.67411175, peri: 77.45779628, dperi: 0.16047689, node: 48.33076593, dnode: -0.12534081 },
+  { name: 'Venus', symbol: '♀', color: '#e8c99b',
+    a: 0.72333566, da: 0.00000390, e: 0.00677672, de: -0.00004107, I: 3.39467605, dI: -0.00078890,
+    L: 181.97909950, dL: 58517.81538729, peri: 131.60246718, dperi: 0.00268329, node: 76.67984255, dnode: -0.27769418 },
+  { name: 'Earth', symbol: '⊕', color: '#5b93d6',
+    a: 1.00000261, da: 0.00000562, e: 0.01671123, de: -0.00004392, I: -0.00001531, dI: -0.01294668,
+    L: 100.46457166, dL: 35999.37244981, peri: 102.93768193, dperi: 0.32327364, node: 0.0, dnode: 0.0 },
+  { name: 'Mars', symbol: '♂', color: '#c1502e',
+    a: 1.52371034, da: 0.00001847, e: 0.09339410, de: 0.00007882, I: 1.84969142, dI: -0.00813131,
+    L: -4.55343205, dL: 19140.30268499, peri: -23.94362959, dperi: 0.44441088, node: 49.55953891, dnode: -0.29257343 },
+  { name: 'Jupiter', symbol: '♃', color: '#d9a066',
+    a: 5.20288700, da: -0.00011607, e: 0.04838624, de: -0.00013253, I: 1.30439695, dI: -0.00183714,
+    L: 34.39644051, dL: 3034.74612775, peri: 14.72847983, dperi: 0.21252668, node: 100.47390909, dnode: 0.20469106 },
+  { name: 'Saturn', symbol: '♄', color: '#e0c68c',
+    a: 9.53667594, da: -0.00125060, e: 0.05386179, de: -0.00050991, I: 2.48599187, dI: 0.00193609,
+    L: 49.95424423, dL: 1222.49362201, peri: 92.59887831, dperi: -0.41897216, node: 113.66242448, dnode: -0.28867794 },
+  { name: 'Uranus', symbol: '⛢', color: '#7fd9d9',
+    a: 19.18916464, da: -0.00196176, e: 0.04725744, de: -0.00004397, I: 0.77263783, dI: -0.00242939,
+    L: 313.23810451, dL: 428.48202785, peri: 170.95427630, dperi: 0.40805281, node: 74.01692503, dnode: 0.04240589 },
+  { name: 'Neptune', symbol: '♆', color: '#4f6fd1',
+    a: 30.06992276, da: 0.00026291, e: 0.00859048, de: 0.00005105, I: 1.77004347, dI: 0.00035372,
+    L: -55.12002969, dL: 218.45945325, peri: 44.96476227, dperi: -0.32241464, node: 131.78422574, dnode: -0.00508664 },
+  { name: 'Pluto', symbol: '♇', color: '#a98cc9',
+    a: 39.48211675, da: -0.00031596, e: 0.24882730, de: 0.00005170, I: 17.14001206, dI: 0.00004818,
+    L: 238.92903833, dL: 145.20780515, peri: 224.06891629, dperi: -0.04062942, node: 110.30393684, dnode: -0.01183482 },
+];
+
+const ZODIAC = ['♈ Aries','♉ Taurus','♊ Gemini','♋ Cancer','♌ Leo','♍ Virgo','♎ Libra','♏ Scorpio','♐ Sagittarius','♑ Capricorn','♒ Aquarius','♓ Pisces'];
+
+function deg2rad(d) { return d * Math.PI / 180; }
+function rad2deg(r) { return r * 180 / Math.PI; }
+function normDeg(x) { x = x % 360; return x < 0 ? x + 360 : x; }
+
+function toJulianDate(date) { return date.getTime() / 86400000 + 2440587.5; }
+
+function solveKepler(M, e) {
+  let E = M;
+  for (let i = 0; i < 60; i++) {
+    const dE = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
+    E -= dE;
+    if (Math.abs(dE) < 1e-10) break;
+  }
+  return E;
+}
+
+// Heliocentric ecliptic position (AU) and ecliptic longitude (deg) at Julian-century T from J2000.
+function heliocentric(el, T) {
+  const a = el.a + el.da * T;
+  const e = el.e + el.de * T;
+  const I = deg2rad(el.I + el.dI * T);
+  const L = normDeg(el.L + el.dL * T);
+  const peri = normDeg(el.peri + el.dperi * T);
+  const node = normDeg(el.node + el.dnode * T);
+
+  let M = normDeg(L - peri);
+  let Mrad = deg2rad(M);
+  if (Mrad > Math.PI) Mrad -= 2 * Math.PI;
+
+  const E = solveKepler(Mrad, e);
+  const v = 2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E / 2), Math.sqrt(1 - e) * Math.cos(E / 2));
+  const r = a * (1 - e * Math.cos(E));
+  const xp = r * Math.cos(v), yp = r * Math.sin(v);
+
+  const om = deg2rad(peri - node); // argument of periapsis
+  const Om = deg2rad(node);
+  const cosOm = Math.cos(Om), sinOm = Math.sin(Om);
+  const cosom = Math.cos(om), sinom = Math.sin(om);
+  const cosI = Math.cos(I), sinI = Math.sin(I);
+
+  const x = (cosom * cosOm - sinom * sinOm * cosI) * xp + (-sinom * cosOm - cosom * sinOm * cosI) * yp;
+  const y = (cosom * sinOm + sinom * cosOm * cosI) * xp + (-sinom * sinOm + cosom * cosOm * cosI) * yp;
+  const z = (sinom * sinI) * xp + (cosom * sinI) * yp;
+
+  const period = Math.sqrt(a * a * a); // years, Kepler's third law
+  return { x, y, z, r, a, e, lon: normDeg(rad2deg(Math.atan2(y, x))), periodYears: period };
+}
+
+function zodiacSign(lonDeg) { return ZODIAC[Math.floor(normDeg(lonDeg) / 30) % 12]; }
+
+// ─────────────────────────────────────────────────────────────────────────
+// State & DOM
+// ─────────────────────────────────────────────────────────────────────────
+let currentDate = new Date();
+let selected = 'Earth';
+let playing = false;
+let playTimer = null;
+
+const dateInput   = document.getElementById('date-input');
+const todayBtn    = document.getElementById('today-btn');
+const playBtn     = document.getElementById('play-btn');
+const speedSelect = document.getElementById('speed-select');
+const readout     = document.getElementById('datetime-readout');
+const planetList  = document.getElementById('planet-list');
+const detailPanel = document.getElementById('detail-panel');
+const dial        = document.getElementById('dial');
+const ctx         = dial.getContext('2d');
+const moonCanvas  = document.getElementById('moon-dial');
+const moonCtx     = moonCanvas.getContext('2d');
+const metonicCanvas = document.getElementById('metonic-dial');
+const metonicCtx  = metonicCanvas.getContext('2d');
+
+function setDate(d) {
+  currentDate = d;
+  dateInput.value = d.toISOString().slice(0, 10);
+  render();
+}
+
+dateInput.addEventListener('change', () => {
+  const [y, m, day] = dateInput.value.split('-').map(Number);
+  setDate(new Date(Date.UTC(y, m - 1, day, currentDate.getUTCHours())));
+});
+todayBtn.addEventListener('click', () => setDate(new Date()));
+
+playBtn.addEventListener('click', () => {
+  playing = !playing;
+  playBtn.textContent = playing ? '⏸ Pause' : '▶ Play';
+  playBtn.classList.toggle('active', playing);
+  if (playing) tick(); else clearTimeout(playTimer);
+});
+
+function tick() {
+  if (!playing) return;
+  currentDate = new Date(currentDate.getTime() + Number(speedSelect.value) / 30);
+  dateInput.value = currentDate.toISOString().slice(0, 10);
+  render();
+  playTimer = setTimeout(tick, 1000 / 30);
+}
+
+setDate(new Date());
+
+// ─────────────────────────────────────────────────────────────────────────
+// Rendering
+// ─────────────────────────────────────────────────────────────────────────
+const CX = 380, CY = 380;
+const R_MIN = 55, R_MAX = 340;
+const AU_MIN = Math.sqrt(0.31), AU_MAX = Math.sqrt(49.5);
+
+function scaleR(auDist) {
+  const s = Math.sqrt(auDist);
+  const t = Math.min(1, Math.max(0, (s - AU_MIN) / (AU_MAX - AU_MIN)));
+  return R_MIN + t * (R_MAX - R_MIN);
+}
+
+function drawGearRing(c, cx, cy, rIn, rOut, teeth) {
+  c.save();
+  c.translate(cx, cy);
+  c.fillStyle = '#4a371f';
+  for (let i = 0; i < teeth; i++) {
+    const a0 = (i / teeth) * 2 * Math.PI;
+    const a1 = a0 + (2 * Math.PI / teeth) * 0.55;
+    c.beginPath();
+    c.arc(0, 0, rOut, a0, a1);
+    c.arc(0, 0, rIn, a1, a0, true);
+    c.closePath();
+    c.fill();
+  }
+  c.restore();
+}
+
+function render() {
+  const JD = toJulianDate(currentDate);
+  const T = (JD - 2451545.0) / 36525;
+
+  const positions = {};
+  PLANETS.forEach(p => { positions[p.name] = heliocentric(p, T); });
+  const earth = positions['Earth'];
+
+  ctx.clearRect(0, 0, dial.width, dial.height);
+  ctx.fillStyle = '#14100a';
+  ctx.fillRect(0, 0, dial.width, dial.height);
+
+  // outer gear bezel
+  drawGearRing(ctx, CX, CY, R_MAX + 34, R_MAX + 48, 96);
+
+  // zodiac ring
+  ctx.save();
+  ctx.translate(CX, CY);
+  ctx.strokeStyle = '#4a371f';
+  ctx.beginPath(); ctx.arc(0, 0, R_MAX + 30, 0, 2 * Math.PI); ctx.stroke();
+  ctx.font = '13px serif';
+  ctx.fillStyle = '#c9a227';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (let i = 0; i < 12; i++) {
+    const mid = deg2rad(i * 30 + 15);
+    const lx = Math.cos(mid) * (R_MAX + 18), ly = -Math.sin(mid) * (R_MAX + 18);
+    ctx.fillText(ZODIAC[i][0], lx, ly);
+    ctx.beginPath();
+    const a = deg2rad(i * 30);
+    ctx.moveTo(Math.cos(a) * (R_MAX + 24), -Math.sin(a) * (R_MAX + 24));
+    ctx.lineTo(Math.cos(a) * (R_MAX + 30), -Math.sin(a) * (R_MAX + 30));
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // orbit rings (static, based on mean semi-major axis)
+  ctx.save();
+  ctx.translate(CX, CY);
+  PLANETS.forEach(p => {
+    const rr = scaleR(positions[p.name].a);
+    ctx.beginPath();
+    ctx.arc(0, 0, rr, 0, 2 * Math.PI);
+    ctx.strokeStyle = 'rgba(201,162,39,0.18)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  });
+  ctx.restore();
+
+  // sun
+  ctx.save();
+  ctx.translate(CX, CY);
+  const sunGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, 22);
+  sunGrad.addColorStop(0, '#fff3c9');
+  sunGrad.addColorStop(1, '#d97a3a');
+  ctx.beginPath(); ctx.arc(0, 0, 16, 0, 2 * Math.PI);
+  ctx.fillStyle = sunGrad; ctx.fill();
+  ctx.strokeStyle = '#8a6a35'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.restore();
+
+  // geocentric ecliptic longitude of the sun -> zodiac pointer
+  const sunGeoLon = normDeg(earth.lon + 180);
+  ctx.save();
+  ctx.translate(CX, CY);
+  const sa = deg2rad(sunGeoLon);
+  ctx.strokeStyle = '#d97a3a'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(Math.cos(sa) * (R_MAX + 30), -Math.sin(sa) * (R_MAX + 30));
+  ctx.lineTo(Math.cos(sa) * (R_MAX + 44), -Math.sin(sa) * (R_MAX + 44));
+  ctx.stroke();
+  ctx.fillStyle = '#d97a3a';
+  ctx.font = 'bold 12px serif'; ctx.textAlign = 'center';
+  ctx.fillText('☉', Math.cos(sa) * (R_MAX + 54), -Math.sin(sa) * (R_MAX + 54) + 4);
+  ctx.restore();
+
+  // planets
+  ctx.save();
+  ctx.translate(CX, CY);
+  PLANETS.forEach(p => {
+    const pos = positions[p.name];
+    const rr = scaleR(pos.r);
+    const a = deg2rad(pos.lon);
+    const x = Math.cos(a) * rr, y = -Math.sin(a) * rr;
+
+    ctx.beginPath();
+    ctx.arc(x, y, p.name === selected ? 11 : 8, 0, 2 * Math.PI);
+    ctx.fillStyle = p.color;
+    ctx.fill();
+    ctx.strokeStyle = p.name === selected ? '#fff3c9' : '#1d160d';
+    ctx.lineWidth = p.name === selected ? 2.5 : 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = '#e9dcb8';
+    ctx.font = '11px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(p.symbol, x, y + 0.5);
+
+    p._screen = { x: x + CX, y: y + CY };
+  });
+  ctx.restore();
+
+  // moon phase subdial
+  const newMoonRef = 2451550.1; // 2000-01-06 18:14 UT
+  const synodic = 29.530588853;
+  const moonPhase = (((JD - newMoonRef) % synodic) + synodic) % synodic / synodic;
+  drawMoonPhase(moonCtx, 45, 40, 26, moonPhase);
+  moonCtx.fillStyle = '#9c8b66'; moonCtx.font = '10px serif'; moonCtx.textAlign = 'center';
+  moonCtx.fillText(moonPhaseLabel(moonPhase), 45, 82);
+
+  // metonic cycle subdial (19-year lunisolar cycle, as on the real mechanism)
+  const metonicYear = ((currentDate.getUTCFullYear() - 2000) % 19 + 19) % 19 + 1;
+  drawMetonicDial(metonicCtx, 45, 40, 30, metonicYear);
+
+  readout.textContent = currentDate.toUTCString().slice(0, 16) + `  ·  ${zodiacSign(sunGeoLon)}`;
+
+  renderList(positions);
+  if (selected) renderDetail(selected, positions);
+}
+
+function moonPhaseLabel(p) {
+  if (p < 0.02 || p > 0.98) return 'New Moon';
+  if (p < 0.24) return 'Waxing Crescent';
+  if (p < 0.27) return 'First Quarter';
+  if (p < 0.49) return 'Waxing Gibbous';
+  if (p < 0.52) return 'Full Moon';
+  if (p < 0.74) return 'Waning Gibbous';
+  if (p < 0.77) return 'Last Quarter';
+  return 'Waning Crescent';
+}
+
+function drawMoonPhase(c, cx, cy, r, phase) {
+  c.clearRect(0, 0, moonCanvas.width, moonCanvas.height);
+  c.save();
+  c.translate(cx, cy);
+  c.beginPath(); c.arc(0, 0, r, 0, 2 * Math.PI);
+  c.fillStyle = '#1e1710'; c.fill();
+  c.strokeStyle = '#5a4326'; c.lineWidth = 1.5; c.stroke();
+
+  const theta = phase * 2 * Math.PI;
+  const rx = r * Math.abs(Math.cos(theta));
+  const litRight = phase < 0.5;
+
+  c.beginPath();
+  c.fillStyle = '#e9dcb8';
+  if (litRight) {
+    c.moveTo(0, -r);
+    c.arc(0, 0, r, -Math.PI / 2, Math.PI / 2, false);
+    c.ellipse(0, 0, rx, r, 0, Math.PI / 2, -Math.PI / 2, phase < 0.25);
+  } else {
+    c.moveTo(0, -r);
+    c.arc(0, 0, r, -Math.PI / 2, Math.PI / 2, true);
+    c.ellipse(0, 0, rx, r, 0, -Math.PI / 2, Math.PI / 2, phase > 0.75);
+  }
+  c.closePath(); c.fill();
+  c.restore();
+}
+
+function drawMetonicDial(c, cx, cy, r, year) {
+  c.clearRect(0, 0, metonicCanvas.width, metonicCanvas.height);
+  c.save();
+  c.translate(cx, cy);
+  c.beginPath(); c.arc(0, 0, r, 0, 2 * Math.PI);
+  c.fillStyle = '#1e1710'; c.fill();
+  c.strokeStyle = '#5a4326'; c.lineWidth = 1.5; c.stroke();
+  for (let i = 0; i < 19; i++) {
+    const a = (i / 19) * 2 * Math.PI - Math.PI / 2;
+    c.beginPath();
+    c.moveTo(Math.cos(a) * (r - 5), Math.sin(a) * (r - 5));
+    c.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    c.strokeStyle = (i + 1 === year) ? '#d97a3a' : '#4a371f';
+    c.lineWidth = (i + 1 === year) ? 2.5 : 1;
+    c.stroke();
+  }
+  c.fillStyle = '#e9dcb8'; c.font = 'bold 13px serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText(year, 0, 1);
+  c.restore();
+}
+
+function isRetrograde(p, T) {
+  if (p.name === 'Earth') return false;
+  const dT = 1 / 36525;
+  const posNow = heliocentric(p, T);
+  const posPrev = heliocentric(p, T - dT);
+  const earthNow = heliocentric(PLANETS.find(x => x.name === 'Earth'), T);
+  const earthPrev = heliocentric(PLANETS.find(x => x.name === 'Earth'), T - dT);
+  const geoNow = normDeg(rad2deg(Math.atan2(posNow.y - earthNow.y, posNow.x - earthNow.x)));
+  const geoPrev = normDeg(rad2deg(Math.atan2(posPrev.y - earthPrev.y, posPrev.x - earthPrev.x)));
+  let diff = normDeg(geoNow - geoPrev + 180) - 180;
+  return diff < 0;
+}
+
+function renderList(positions) {
+  const JD = toJulianDate(currentDate);
+  const T = (JD - 2451545.0) / 36525;
+  const earth = positions['Earth'];
+  planetList.innerHTML = '';
+  PLANETS.forEach(p => {
+    const pos = positions[p.name];
+    const geoLon = normDeg(rad2deg(Math.atan2(pos.y - earth.y, pos.x - earth.x)));
+    const rx = isRetrograde(p, T);
+    const row = document.createElement('div');
+    row.className = 'planet-row' + (p.name === selected ? ' active' : '');
+    row.innerHTML = `
+      <div class="p-glyph" style="color:${p.color};border-color:${p.color}55">${p.symbol}</div>
+      <div class="p-info">
+        <div class="p-name">${p.name}${rx ? '<span class="p-rx">℞ Rx</span>' : ''}</div>
+        <div class="p-meta">${pos.r.toFixed(2)} AU from Sun · ${zodiacSign(geoLon)}</div>
+      </div>`;
+    row.addEventListener('click', () => { selected = p.name; render(); });
+    planetList.appendChild(row);
+  });
+}
+
+function renderDetail(name, positions) {
+  const p = PLANETS.find(x => x.name === name);
+  const pos = positions[name];
+  const earth = positions['Earth'];
+  const distEarth = Math.sqrt((pos.x - earth.x) ** 2 + (pos.y - earth.y) ** 2 + (pos.z - earth.z) ** 2);
+  const geoLon = normDeg(rad2deg(Math.atan2(pos.y - earth.y, pos.x - earth.x)));
+  const JD = toJulianDate(currentDate);
+  const T = (JD - 2451545.0) / 36525;
+  const rx = isRetrograde(p, T);
+  detailPanel.innerHTML = `
+    <h3>${p.symbol} ${p.name}</h3>
+    <div>Distance from Sun: ${pos.r.toFixed(3)} AU</div>
+    <div>${name === 'Earth' ? 'You are here' : `Distance from Earth: ${distEarth.toFixed(3)} AU`}</div>
+    <div>Orbital period: ${pos.periodYears.toFixed(2)} years (${Math.round(pos.periodYears * 365.25).toLocaleString()} days)</div>
+    <div>Eccentricity: ${pos.e.toFixed(3)}</div>
+    <div>Zodiac (geocentric): ${zodiacSign(geoLon)}</div>
+    ${rx ? '<div style="color:#d1583f">℞ Currently in apparent retrograde</div>' : ''}
+  `;
+}
+
+dial.addEventListener('click', e => {
+  const rect = dial.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (dial.width / rect.width);
+  const my = (e.clientY - rect.top) * (dial.height / rect.height);
+  let best = null, bestD = 22;
+  PLANETS.forEach(p => {
+    if (!p._screen) return;
+    const d = Math.hypot(mx - p._screen.x, my - p._screen.y);
+    if (d < bestD) { bestD = d; best = p.name; }
+  });
+  if (best) { selected = best; render(); }
+});
+
+render();
+</script>
+</body>
+</html>
