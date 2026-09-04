@@ -1143,30 +1143,22 @@ function moonPhaseLabel(p) {
 // after the swept shield panel on a classic jump-hour watch.
 const SHIELD_TIP_DEG = 15; // how far up either side the wings climb (0=diameter)
 
-// Explicit (angle, bulge) keypoints, LINEARLY interpolated — straight facets
-// meeting at sharp points, for a faceted/machined look rather than a soft
-// blobby curve. Three scalloped lobes (Metonic / Moon / Day-Date), each a
-// sharp apex, separated by genuine sharp-pointed notches. Angle convention:
-// 90=bottom pole, 15/165=wing tips.
-const SHIELD_KEYS = [
-  [SHIELD_TIP_DEG, 0],
-  [40, 70],
-  [55, 180],   // Metonic lobe apex
-  [72.5, 56],  // notch
-  [90, 250],   // Moon lobe apex (largest)
-  [107.5, 56], // notch
-  [125, 180],  // Day-Date lobe apex
-  [140, 70],
-  [180 - SHIELD_TIP_DEG, 0],
+// A flat-topped ziggurat: three wide plateaus (Metonic / Moon / Day-Date) at
+// three fixed heights, joined by sharp vertical risers rather than a sloped
+// facet or a curve. Angle convention: 90=bottom pole, 15/165=wing tips.
+// Levels, widest to narrowest: flush wingtips -> Metonic/Day-Date tier ->
+// Moon tier (tallest, centered on the bottom pole).
+const SHIELD_STEPS = [
+  [35, 0],    // flush with the case out to here
+  [75, 170],  // Metonic plateau
+  [105, 250], // Moon plateau (tallest, largest)
+  [145, 170], // Day-Date plateau
+  [180, 0],   // flush with the case from here to the far wingtip
 ];
 
 function shieldBulgeAt(phiDeg) {
-  for (let i = 0; i < SHIELD_KEYS.length - 1; i++) {
-    const [p0, v0] = SHIELD_KEYS[i], [p1, v1] = SHIELD_KEYS[i + 1];
-    if (phiDeg >= p0 && phiDeg <= p1) {
-      const t = (phiDeg - p0) / (p1 - p0);
-      return v0 + (v1 - v0) * t;
-    }
+  for (const [upTo, level] of SHIELD_STEPS) {
+    if (phiDeg < upTo) return level;
   }
   return 0;
 }
