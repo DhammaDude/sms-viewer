@@ -693,23 +693,24 @@ function drawTimeRing(c, cx, cy, th) {
   c.strokeStyle = th.metalDeepest; c.lineWidth = 0.75;
   c.stroke();
 
-  // minute marker — a slim dark hand, reaching further out
+  // minute marker — Earth blue, slim, reaching further out
+  const EARTH_BLUE = '#5b93d6';
   const am = deg2rad(90 - minFrac * 6);
   c.beginPath();
   c.moveTo(Math.cos(am) * (rIn + 1), -Math.sin(am) * (rIn + 1));
   c.lineTo(Math.cos(am) * (rOut - 2), -Math.sin(am) * (rOut - 2));
-  c.strokeStyle = th.metalDeepest; c.lineWidth = 1.8; c.lineCap = 'round';
+  c.strokeStyle = EARTH_BLUE; c.lineWidth = 1.8; c.lineCap = 'round';
   c.stroke();
 
-  // second marker — thin, bright metal, sweeps continuously
+  // second marker — Earth blue too, thinner, sweeps continuously
   const as = deg2rad(90 - secFrac * 6);
   c.beginPath();
   c.moveTo(Math.cos(as) * (rIn + 1), -Math.sin(as) * (rIn + 1));
   c.lineTo(Math.cos(as) * (rOut - 1), -Math.sin(as) * (rOut - 1));
-  c.strokeStyle = th.metalBright; c.lineWidth = 1.2; c.lineCap = 'round';
+  c.strokeStyle = EARTH_BLUE; c.lineWidth = 1.2; c.lineCap = 'round';
   c.stroke();
   c.beginPath(); c.arc(Math.cos(as) * (rIn + 1), -Math.sin(as) * (rIn + 1), 1.8, 0, 2 * Math.PI);
-  c.fillStyle = th.metalBright; c.fill();
+  c.fillStyle = EARTH_BLUE; c.fill();
 
   c.lineCap = 'butt';
   c.restore();
