@@ -1,8 +1,8 @@
-// Service worker for the Digital Antikythera Mechanism PWA.
+// Service worker for the WJC & Co. Orrery Chronometer PWA.
 // Cache-first for the app's own files so it opens and runs fully offline;
 // everything else (e.g. the Google Fonts CDN) is left to the network/browser
 // cache untouched.
-const CACHE_NAME = 'antikythera-v1';
+const CACHE_NAME = 'orrery-chronometer-v2';
 const PRECACHE_URLS = [
   './orrery.html',
   './manifest.json',

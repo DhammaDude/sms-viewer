@@ -1,6 +1,6 @@
 {
-  "name": "Digital Antikythera Mechanism",
-  "short_name": "Antikythera",
+  "name": "WJC & Co. Orrery Chronometer",
+  "short_name": "Orrery Chron.",
   "description": "An astronomically accurate orrery styled as an antique pocket watch, with lunar, calendar, and eclipse complications.",
   "start_url": "./orrery.html",
   "scope": "./",
