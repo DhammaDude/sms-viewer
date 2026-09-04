@@ -1101,7 +1101,7 @@ function render() {
 
   drawMetonicDial(ctx, metonicPos.x, metonicPos.y, metonicR, metonicYear, th);
   drawMoonPhase(ctx, moonPos.x, moonPos.y, moonR, moonPhase, th);
-  drawDayDateDial(ctx, dayDatePos.x, dayDatePos.y, dayDateR, dayOfYear, dateStr, currentDate.getUTCFullYear(), th);
+  drawDayDateDial(ctx, dayDatePos.x, dayDatePos.y, 125, dayOfYear, dateStr, currentDate.getUTCFullYear(), th);
 
   if (eclipseType) {
     ctx.save();
@@ -1333,18 +1333,43 @@ function drawMetonicDial(c, cx, cy, r, year, th) {
 
 // A classic "Day-Date" complication: two small windows in one subdial,
 // the day-of-year count on the left and the calendar date on the right.
-function drawDayDateDial(c, cx, cy, r, dayOfYear, dateStr, year, th) {
+function drawDayDateDial(c, cx, cy, phiDeg, dayOfYear, dateStr, year, th) {
   c.save();
   c.translate(cx, cy);
+  // No separate subdial disc or circular bezel here -- rotate to the plate's
+  // own local "outward" direction and engrave the windows straight into its
+  // surface, so the shield's own metal (already painted behind this) shows
+  // through everywhere but the recessed panel itself.
+  c.rotate(deg2rad(phiDeg - 90));
 
-  c.beginPath(); c.arc(0, 0, r, 0, 2 * Math.PI);
-  c.fillStyle = th.subdialFace; c.fill();
-
-  const h = 33, gap = 6;
-  const dayW = 34, dateW = 60;
+  const h = 34, gap = 7;
+  const dayW = 36, dateW = 62;
   const totalW = dayW + gap + dateW;
   const dayX = -totalW / 2 + dayW / 2;
   const dateX = -totalW / 2 + dayW + gap + dateW / 2;
+
+  const padX = 12, padY = 8, labelH = 16;
+  const panelW = totalW + padX * 2;
+  const panelTop = -h / 2 - 5 - padY - labelH;
+  const panelBottom = h / 2 - 5 + padY;
+  const panelH = panelBottom - panelTop;
+
+  // a shallow recess milled into the plate, not a raised bezel
+  c.beginPath();
+  c.rect(-panelW / 2, panelTop, panelW, panelH);
+  c.fillStyle = 'rgba(0,0,0,0.2)';
+  c.fill();
+  c.strokeStyle = th.metalDeepest; c.lineWidth = 1.5;
+  c.stroke();
+  c.strokeStyle = 'rgba(255,255,255,0.15)'; c.lineWidth = 1;
+  c.beginPath();
+  c.rect(-panelW / 2 + 1.5, panelTop + 1.5, panelW - 3, panelH - 3);
+  c.stroke();
+
+  c.fillStyle = th.subdialDim;
+  c.font = '12px "Cormorant Garamond", serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText('DAY' + '  ' + 'DATE', 0, panelTop + 11);
+
   [
     { x: dayX, w: dayW, text: String(dayOfYear), fontPx: 16 },
     { x: dateX, w: dateW, text: dateStr, fontPx: 13 },
@@ -1359,11 +1384,21 @@ function drawDayDateDial(c, cx, cy, r, dayOfYear, dateStr, year, th) {
   });
 
   c.fillStyle = th.subdialDim;
-  c.font = '13px "Cormorant Garamond", serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.fillText('DAY' + '  ' + 'DATE', 0, -h / 2 - 5 - 10);
-  c.fillText('A.D. ' + year, 0, r * 0.62);
+  c.font = '11px "Cormorant Garamond", serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText('A.D. ' + year, 0, panelBottom - 8);
 
-  drawComplicationBezel(c, r, th);
+  // small rivets at the panel corners, echoing the shield's own rivets,
+  // rather than a circular bezel ring
+  [
+    [-panelW / 2 + 6, panelTop + 6], [panelW / 2 - 6, panelTop + 6],
+    [-panelW / 2 + 6, panelBottom - 6], [panelW / 2 - 6, panelBottom - 6],
+  ].forEach(([rx, ry]) => {
+    c.beginPath(); c.arc(rx, ry, 2.2, 0, 2 * Math.PI);
+    c.fillStyle = th.metalDeepest; c.fill();
+    c.beginPath(); c.arc(rx - 0.6, ry - 0.6, 0.8, 0, 2 * Math.PI);
+    c.fillStyle = 'rgba(255,255,255,0.5)'; c.fill();
+  });
+
   c.restore();
 }
 
