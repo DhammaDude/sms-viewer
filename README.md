@@ -1,4 +1,4 @@
-# Digital Antikythera Mechanism
+# WJC & Co. Orrery Chronometer
 
 An astronomically accurate orrery for all nine planets (Mercury–Pluto), styled as
 an antique brass/steel pocket watch. Runs entirely client-side in a single HTML
