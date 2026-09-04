@@ -26,9 +26,6 @@
     --ctl-hover-bg: #34260f;
     --ctl-active-text: #241b10;
     --row-active-bg: #2c2011;
-    --aperture-bg-1: #2a2013;
-    --aperture-bg-2: #17110a;
-    --aperture-border: #6e5220;
     --font-display: "Cinzel", "Cormorant Garamond", Georgia, serif;
     --font-heading: "Cormorant Garamond", Georgia, serif;
     --font-body: "Spectral", "Iowan Old Style", Georgia, serif;
@@ -52,9 +49,6 @@
     --ctl-hover-bg: #dde1e5;
     --ctl-active-text: #ffffff;
     --row-active-bg: #e3e7ea;
-    --aperture-bg-1: #c9cdd1;
-    --aperture-bg-2: #9aa3ab;
-    --aperture-border: #6b747c;
   }
 
   body {
@@ -126,29 +120,7 @@
   #dial-wrap { position: relative; max-width: 100%; }
   canvas#dial { display: block; max-width: 100%; height: auto; }
 
-  /* ── Complications strip ── */
-  #subdials { display: flex; gap: 22px; align-items: flex-end; flex-wrap: wrap; justify-content: center; }
-  .complication { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-  .complication canvas { display: block; }
-  .subdial-label {
-    font-family: var(--font-display); text-align: center; font-size: 10px; color: var(--brass-dim);
-    letter-spacing: .1em; text-transform: uppercase;
-  }
-  .comp-caption {
-    font-family: var(--font-heading); font-style: italic; font-size: 12px; color: var(--parchment);
-    text-align: center; margin-top: -2px;
-  }
-  #date-aperture {
-    width: 90px; height: 90px; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    border-radius: 50%; background: radial-gradient(circle at 35% 30%, var(--aperture-bg-1) 0%, var(--aperture-bg-2) 70%);
-    border: 2px solid var(--brass-dim); box-shadow: inset 0 0 10px rgba(0,0,0,.25);
-  }
-  #date-aperture-window {
-    background: var(--ivory); color: var(--ink); font-family: var(--font-display); font-weight: 600;
-    font-size: 15px; letter-spacing: .04em; padding: 5px 10px; border-radius: 3px;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,.25); border: 1px solid var(--aperture-border);
-  }
-  #date-aperture-year { font-family: var(--font-body); font-size: 10px; color: var(--muted); margin-top: 5px; }
+  #almanac-line { font-family: var(--font-heading); font-style: italic; font-size: 12px; color: var(--muted); text-align: center; margin-top: 2px; }
 
   @media (max-width: 820px) {
     body { flex-direction: column; height: auto; min-height: 100dvh; overflow: auto; }
@@ -216,6 +188,7 @@
       </div>
     </div>
     <div id="datetime-readout">—</div>
+    <div id="almanac-line">—</div>
     <div>
       <label>Data</label>
       <div class="row">
@@ -240,30 +213,6 @@
 <div id="main">
   <div id="dial-wrap">
     <canvas id="dial" width="860" height="860"></canvas>
-  </div>
-  <div id="subdials">
-    <div class="complication">
-      <canvas id="moon-dial" width="90" height="90"></canvas>
-      <div class="comp-caption" id="moon-caption">—</div>
-      <div class="subdial-label">Lunar Phase</div>
-    </div>
-    <div class="complication">
-      <canvas id="metonic-dial" width="90" height="90"></canvas>
-      <div class="comp-caption" id="metonic-caption">—</div>
-      <div class="subdial-label">Metonic Cycle</div>
-    </div>
-    <div class="complication">
-      <canvas id="day-dial" width="90" height="90"></canvas>
-      <div class="comp-caption" id="day-caption">—</div>
-      <div class="subdial-label">Day of Year</div>
-    </div>
-    <div class="complication">
-      <div id="date-aperture">
-        <div id="date-aperture-window"><span id="date-aperture-text">01 JAN</span></div>
-        <div id="date-aperture-year">AD <span id="date-aperture-year-text">2000</span></div>
-      </div>
-      <div class="subdial-label">Date</div>
-    </div>
   </div>
 </div>
 
@@ -346,6 +295,8 @@ const THEMES = {
     defaultStroke: '#1d160d',
     subdialFace: '#1e1710',
     subdialDim: '#9c8b66',
+    dateWindowBg: '#ece2c4',
+    dateWindowText: '#211a10',
   },
   steel: {
     caseBg: '#e4e7ea',
@@ -369,6 +320,8 @@ const THEMES = {
     defaultStroke: '#f4f5f6',
     subdialFace: '#1c2024',
     subdialDim: '#8b95a0',
+    dateWindowBg: '#f5f6f7',
+    dateWindowText: '#202427',
   },
 };
 
@@ -449,17 +402,7 @@ const planetList  = document.getElementById('planet-list');
 const detailPanel = document.getElementById('detail-panel');
 const dial        = document.getElementById('dial');
 const ctx         = dial.getContext('2d');
-const moonCanvas  = document.getElementById('moon-dial');
-const moonCtx     = moonCanvas.getContext('2d');
-const metonicCanvas = document.getElementById('metonic-dial');
-const metonicCtx  = metonicCanvas.getContext('2d');
-const dayCanvas   = document.getElementById('day-dial');
-const dayCtx      = dayCanvas.getContext('2d');
-const dateApertureText = document.getElementById('date-aperture-text');
-const dateApertureYearText = document.getElementById('date-aperture-year-text');
-const moonCaption = document.getElementById('moon-caption');
-const metonicCaption = document.getElementById('metonic-caption');
-const dayCaption  = document.getElementById('day-caption');
+const almanacLine = document.getElementById('almanac-line');
 const exportBtn   = document.getElementById('export-btn');
 const exportRangeBtn = document.getElementById('export-range-btn');
 const importBtn   = document.getElementById('import-btn');
@@ -864,28 +807,26 @@ function render() {
   });
   ctx.restore();
 
-  // complications
+  // complications — inset directly into the dial, in the gaps between orbit
+  // rings, so no planet marker ever passes behind one.
   const newMoonRef = 2451550.1; // 2000-01-06 18:14 UT
   const synodic = 29.530588853;
   const moonPhase = (((JD - newMoonRef) % synodic) + synodic) % synodic / synodic;
-  drawMoonPhase(moonCtx, 45, 45, 34, moonPhase, th);
-  moonCaption.textContent = moonPhaseLabel(moonPhase);
+  drawMoonPhase(ctx, CX, CY, 194.8, 180, 18, moonPhase, th); // in the Saturn–Uranus gap, 9 o'clock
 
   const metonicYear = ((currentDate.getUTCFullYear() - 2000) % 19 + 19) % 19 + 1;
-  drawMetonicDial(metonicCtx, 45, 55, 36, metonicYear, th);
-  metonicCaption.textContent = `Year ${metonicYear} of 19`;
+  drawMetonicDial(ctx, CX, CY, 247.5, 270, 15, metonicYear, th); // Uranus–Neptune gap, 6 o'clock
+
+  const MONTH_ABBR = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const dateStr = `${String(currentDate.getUTCDate()).padStart(2, '0')} ${MONTH_ABBR[currentDate.getUTCMonth()]}`;
+  drawDateWindow(ctx, CX, CY, 107.8, 0, dateStr, th); // Mars–Jupiter gap, 3 o'clock
 
   const startOfYear = Date.UTC(currentDate.getUTCFullYear(), 0, 1);
   const daysInYear = (Date.UTC(currentDate.getUTCFullYear() + 1, 0, 1) - startOfYear) / 86400000;
   const dayOfYear = Math.floor((Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), currentDate.getUTCDate()) - startOfYear) / 86400000) + 1;
-  drawDayOfYearDial(dayCtx, 45, 45, 36, dayOfYear, daysInYear, th);
-  dayCaption.textContent = `Day ${dayOfYear} of ${daysInYear}`;
-
-  const MONTH_ABBR = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-  dateApertureText.textContent = `${String(currentDate.getUTCDate()).padStart(2, '0')} ${MONTH_ABBR[currentDate.getUTCMonth()]}`;
-  dateApertureYearText.textContent = currentDate.getUTCFullYear();
 
   readout.textContent = currentDate.toUTCString().slice(0, 16) + `  ·  ${zodiacSign(sunGeoLon)}`;
+  almanacLine.textContent = `${moonPhaseLabel(moonPhase)} · Metonic year ${metonicYear}/19 · Day ${dayOfYear}/${daysInYear}`;
 
   renderList(positions);
   if (selected) renderDetail(selected, positions);
@@ -902,6 +843,15 @@ function moonPhaseLabel(p) {
   return 'Waning Crescent';
 }
 
+// Every complication sits inset in the gap between two orbit rings, at a
+// real watch position (angleDeg: 0=3 o'clock, 90=12, 180=9, 270=6), so it
+// never collides with a planet marker — planets only ever sit exactly on
+// their own orbit ring, never in the gap between two.
+function complicationOrigin(dialCx, dialCy, orbitRadius, angleDeg) {
+  const a = deg2rad(angleDeg);
+  return { x: dialCx + Math.cos(a) * orbitRadius, y: dialCy - Math.sin(a) * orbitRadius };
+}
+
 function drawComplicationBezel(c, r, th) {
   c.beginPath(); c.arc(0, 0, r + 6, 0, 2 * Math.PI);
   c.strokeStyle = th.metalBright; c.lineWidth = 2; c.stroke();
@@ -909,8 +859,8 @@ function drawComplicationBezel(c, r, th) {
   c.strokeStyle = th.metalMid; c.lineWidth = 1; c.stroke();
 }
 
-function drawMoonPhase(c, cx, cy, r, phase, th) {
-  c.clearRect(0, 0, moonCanvas.width, moonCanvas.height);
+function drawMoonPhase(c, dialCx, dialCy, orbitRadius, angleDeg, r, phase, th) {
+  const { x: cx, y: cy } = complicationOrigin(dialCx, dialCy, orbitRadius, angleDeg);
   c.save();
   c.translate(cx, cy);
 
@@ -918,9 +868,9 @@ function drawMoonPhase(c, cx, cy, r, phase, th) {
   c.fillStyle = '#0e1a24'; c.fill();
 
   // faint fixed starfield for a night-sky moonphase face (kept dark in both themes, like a "panda dial" register)
-  const stars = [[-18,-14],[10,-20],[19,3],[-9,17],[4,22],[-20,6],[14,15]];
+  const stars = [[-9,-7],[6,-10],[9,2],[-5,8],[2,11],[-10,3],[7,7]];
   c.fillStyle = 'rgba(236,226,196,0.5)';
-  stars.forEach(([sx, sy]) => { c.beginPath(); c.arc(sx, sy, 0.8, 0, 2 * Math.PI); c.fill(); });
+  stars.forEach(([sx, sy]) => { c.beginPath(); c.arc(sx, sy, 0.6, 0, 2 * Math.PI); c.fill(); });
 
   const theta = phase * 2 * Math.PI;
   const rx = r * Math.abs(Math.cos(theta));
@@ -944,8 +894,8 @@ function drawMoonPhase(c, cx, cy, r, phase, th) {
 }
 
 // Power-reserve-style fan gauge for the 19-year Metonic lunisolar cycle.
-function drawMetonicDial(c, cx, cy, r, year, th) {
-  c.clearRect(0, 0, metonicCanvas.width, metonicCanvas.height);
+function drawMetonicDial(c, dialCx, dialCy, orbitRadius, angleDeg, r, year, th) {
+  const { x: cx, y: cy } = complicationOrigin(dialCx, dialCy, orbitRadius, angleDeg);
   c.save();
   c.translate(cx, cy);
 
@@ -955,56 +905,52 @@ function drawMetonicDial(c, cx, cy, r, year, th) {
 
   const angleFor = y => Math.PI + ((y - 1) / 18) * Math.PI;
 
-  c.beginPath(); c.arc(0, 0, r - 6, Math.PI, 2 * Math.PI); c.strokeStyle = th.metalDark; c.lineWidth = 3; c.stroke();
-  c.beginPath(); c.arc(0, 0, r - 6, Math.PI, angleFor(year)); c.strokeStyle = th.metalBright; c.lineWidth = 3; c.stroke();
+  c.beginPath(); c.arc(0, 0, r - 4, Math.PI, 2 * Math.PI); c.strokeStyle = th.metalDark; c.lineWidth = 2.5; c.stroke();
+  c.beginPath(); c.arc(0, 0, r - 4, Math.PI, angleFor(year)); c.strokeStyle = th.metalBright; c.lineWidth = 2.5; c.stroke();
 
-  [1, 5, 10, 15, 19].forEach(y => {
+  [1, 10, 19].forEach(y => {
     const a = angleFor(y);
     c.beginPath();
-    c.moveTo(Math.cos(a) * (r - 11), Math.sin(a) * (r - 11));
+    c.moveTo(Math.cos(a) * (r - 8), Math.sin(a) * (r - 8));
     c.lineTo(Math.cos(a) * (r - 2), Math.sin(a) * (r - 2));
     c.strokeStyle = th.metalMid; c.lineWidth = 1; c.stroke();
-    c.fillStyle = th.subdialDim; c.font = '8px serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.fillText(y, Math.cos(a) * (r - 19), Math.sin(a) * (r - 19));
   });
 
   const na = angleFor(year);
   c.beginPath();
-  c.moveTo(Math.cos(na + Math.PI) * 4, Math.sin(na + Math.PI) * 4);
-  c.lineTo(Math.cos(na) * (r - 8), Math.sin(na) * (r - 8));
-  c.strokeStyle = th.accentHand; c.lineWidth = 2; c.stroke();
-  c.beginPath(); c.arc(0, 0, 3, 0, 2 * Math.PI); c.fillStyle = '#c9a54a'; c.fill();
+  c.moveTo(Math.cos(na + Math.PI) * 3, Math.sin(na + Math.PI) * 3);
+  c.lineTo(Math.cos(na) * (r - 6), Math.sin(na) * (r - 6));
+  c.strokeStyle = th.accentHand; c.lineWidth = 1.6; c.stroke();
+  c.beginPath(); c.arc(0, 0, 2.2, 0, 2 * Math.PI); c.fillStyle = '#c9a54a'; c.fill();
 
   c.beginPath(); c.arc(0, 0, r + 6, Math.PI, 2 * Math.PI); c.strokeStyle = th.metalBright; c.lineWidth = 2; c.stroke();
   c.beginPath(); c.arc(0, 0, r + 2, Math.PI, 2 * Math.PI); c.strokeStyle = th.metalMid; c.lineWidth = 1; c.stroke();
+  c.fillStyle = th.subdialDim;
+  c.font = '600 8px Cinzel, serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText('METONIC', 0, r * 0.55);
   c.restore();
 }
 
-// Sweeping-hand dial tracking the day of the year against a 12-month chapter ring.
-function drawDayOfYearDial(c, cx, cy, r, dayOfYear, daysInYear, th) {
-  c.clearRect(0, 0, dayCanvas.width, dayCanvas.height);
+// Classic rectangular date-window aperture.
+function drawDateWindow(c, dialCx, dialCy, orbitRadius, angleDeg, dateStr, th) {
+  const { x: cx, y: cy } = complicationOrigin(dialCx, dialCy, orbitRadius, angleDeg);
+  const w = 28, h = 16;
   c.save();
   c.translate(cx, cy);
 
-  c.beginPath(); c.arc(0, 0, r, 0, 2 * Math.PI);
-  c.fillStyle = th.subdialFace; c.fill();
+  c.fillStyle = th.subdialFace;
+  c.fillRect(-w / 2 - 4, -h / 2 - 4, w + 8, h + 8);
+  c.strokeStyle = th.metalBright; c.lineWidth = 1.5;
+  c.strokeRect(-w / 2 - 4, -h / 2 - 4, w + 8, h + 8);
 
-  for (let i = 0; i < 12; i++) {
-    const a = (i / 12) * 2 * Math.PI - Math.PI / 2;
-    c.beginPath();
-    c.moveTo(Math.cos(a) * (r - 6), Math.sin(a) * (r - 6));
-    c.lineTo(Math.cos(a) * (r - 2), Math.sin(a) * (r - 2));
-    c.strokeStyle = th.metalMid; c.lineWidth = 1.4; c.stroke();
-  }
+  c.fillStyle = th.dateWindowBg;
+  c.fillRect(-w / 2, -h / 2, w, h);
+  c.strokeStyle = th.metalDeepest; c.lineWidth = 1;
+  c.strokeRect(-w / 2, -h / 2, w, h);
 
-  const a = (dayOfYear / daysInYear) * 2 * Math.PI - Math.PI / 2;
-  c.beginPath();
-  c.moveTo(Math.cos(a + Math.PI) * 5, Math.sin(a + Math.PI) * 5);
-  c.lineTo(Math.cos(a) * (r - 9), Math.sin(a) * (r - 9));
-  c.strokeStyle = th.accentHand; c.lineWidth = 2; c.stroke();
-  c.beginPath(); c.arc(0, 0, 3, 0, 2 * Math.PI); c.fillStyle = '#c9a54a'; c.fill();
-
-  drawComplicationBezel(c, r, th);
+  c.fillStyle = th.dateWindowText;
+  c.font = '600 9px Cinzel, serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText(dateStr, 0, 0.5);
   c.restore();
 }
 
