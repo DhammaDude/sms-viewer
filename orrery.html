@@ -648,45 +648,68 @@ function drawTimeRing(c, cx, cy, th) {
   c.save();
   c.translate(cx, cy);
 
-  // 60 minute ticks, 12 of them bolder as hour marks
+  // a darker backing band makes the whole ring read as its own instrument,
+  // not just texture on the case
+  c.beginPath();
+  c.arc(0, 0, rOut - 1, 0, 2 * Math.PI);
+  c.arc(0, 0, rIn + 1, 0, 2 * Math.PI, true);
+  c.fillStyle = 'rgba(0,0,0,0.16)';
+  c.fill('evenodd');
+
+  // 60 minute ticks, 12 of them bolder as hour marks, with cardinal numerals
+  const ROMAN = { 0: 'XII', 3: 'III', 6: 'VI', 9: 'IX' };
   for (let i = 0; i < 60; i++) {
     const theta = i * 6;
     const a = deg2rad(90 - theta);
     const isHour = i % 5 === 0;
-    const tickIn = isHour ? rOut - 9 : rOut - 4;
+    const hourIdx = i / 5;
+    const tickIn = isHour ? rOut - 11 : rOut - 4;
     c.beginPath();
     c.moveTo(Math.cos(a) * tickIn, -Math.sin(a) * tickIn);
     c.lineTo(Math.cos(a) * rOut, -Math.sin(a) * rOut);
     c.strokeStyle = isHour ? th.metalDeepest : th.metalDark;
-    c.lineWidth = isHour ? 2 : 1;
+    c.lineWidth = isHour ? 2.6 : 1.1;
     c.stroke();
+    if (isHour && ROMAN[hourIdx] !== undefined) {
+      c.fillStyle = th.metalDeepest;
+      c.font = '600 9px Cinzel, serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText(ROMAN[hourIdx], Math.cos(a) * (rIn + 9), -Math.sin(a) * (rIn + 9));
+    }
   }
 
-  // hour marker — short, thick, innermost
+  // hour marker — a bold filled wedge in the accent color, unmistakable
+  // against the thin minute/second lines
   const ah = deg2rad(90 - hourFrac * 30);
+  const radial = { x: Math.cos(ah), y: -Math.sin(ah) };
+  const tangent = { x: -Math.sin(ah), y: -Math.cos(ah) };
+  const hBase = rIn + 2, hTip = rOut - 6, hHalfWidth = 4.2;
   c.beginPath();
-  c.moveTo(Math.cos(ah) * (rIn + 1), -Math.sin(ah) * (rIn + 1));
-  c.lineTo(Math.cos(ah) * (rIn + 7), -Math.sin(ah) * (rIn + 7));
-  c.strokeStyle = th.metalDeepest; c.lineWidth = 3; c.lineCap = 'round';
+  c.moveTo(radial.x * hBase + tangent.x * hHalfWidth, radial.y * hBase + tangent.y * hHalfWidth);
+  c.lineTo(radial.x * hTip, radial.y * hTip);
+  c.lineTo(radial.x * hBase - tangent.x * hHalfWidth, radial.y * hBase - tangent.y * hHalfWidth);
+  c.closePath();
+  c.fillStyle = th.accentHand;
+  c.fill();
+  c.strokeStyle = th.metalDeepest; c.lineWidth = 0.75;
   c.stroke();
 
-  // minute marker — medium
+  // minute marker — a slim dark hand, reaching further out
   const am = deg2rad(90 - minFrac * 6);
   c.beginPath();
   c.moveTo(Math.cos(am) * (rIn + 1), -Math.sin(am) * (rIn + 1));
-  c.lineTo(Math.cos(am) * (rOut - 3), -Math.sin(am) * (rOut - 3));
-  c.strokeStyle = th.metalDeepest; c.lineWidth = 2; c.lineCap = 'round';
+  c.lineTo(Math.cos(am) * (rOut - 2), -Math.sin(am) * (rOut - 2));
+  c.strokeStyle = th.metalDeepest; c.lineWidth = 1.8; c.lineCap = 'round';
   c.stroke();
 
-  // second marker — thin, bright accent, sweeps continuously
+  // second marker — thin, bright metal, sweeps continuously
   const as = deg2rad(90 - secFrac * 6);
   c.beginPath();
   c.moveTo(Math.cos(as) * (rIn + 1), -Math.sin(as) * (rIn + 1));
   c.lineTo(Math.cos(as) * (rOut - 1), -Math.sin(as) * (rOut - 1));
-  c.strokeStyle = th.accentHand; c.lineWidth = 1.4; c.lineCap = 'round';
+  c.strokeStyle = th.metalBright; c.lineWidth = 1.2; c.lineCap = 'round';
   c.stroke();
   c.beginPath(); c.arc(Math.cos(as) * (rIn + 1), -Math.sin(as) * (rIn + 1), 1.8, 0, 2 * Math.PI);
-  c.fillStyle = th.accentHand; c.fill();
+  c.fillStyle = th.metalBright; c.fill();
 
   c.lineCap = 'butt';
   c.restore();
