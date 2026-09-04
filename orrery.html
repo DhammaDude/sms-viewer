@@ -212,7 +212,7 @@
 
 <div id="main">
   <div id="dial-wrap">
-    <canvas id="dial" width="940" height="1080"></canvas>
+    <canvas id="dial" width="940" height="1130"></canvas>
   </div>
 </div>
 
@@ -807,9 +807,11 @@ function render() {
   });
   ctx.restore();
 
-  // complications — mounted on a shield plate that hugs the dial's own case
-  // curve (drawn on this same canvas so the seam is pixel-exact), holding
-  // four subdials side by side: Moon, Date, Day of Year, Metonic.
+  // complications — mounted on a scalloped shield plate that hugs the
+  // dial's own case curve (drawn on this same canvas so the seam is
+  // pixel-exact), each sitting in its own lobe: Metonic (right), Moon
+  // Phase (middle, largest), Day-Date (left), each placed radially out
+  // from the case along its lobe's own angle.
   drawShieldPlate(ctx, CX, CY, th);
 
   const newMoonRef = 2451550.1; // 2000-01-06 18:14 UT
@@ -825,11 +827,20 @@ function render() {
   const MONTH_ABBR = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
   const dateStr = `${String(currentDate.getUTCDate()).padStart(2, '0')} ${MONTH_ABBR[currentDate.getUTCMonth()]}`;
 
-  const rowY = CY + 480;
-  drawMoonPhase(ctx, CX - 180, rowY, 58, moonPhase, th);
-  drawDateDial(ctx, CX - 46, rowY, 48, dateStr, currentDate.getUTCFullYear(), th);
-  drawDayOfYearDial(ctx, CX + 78, rowY, 48, dayOfYear, daysInYear, th);
-  drawMetonicDial(ctx, CX + 196, rowY + 8, 42, metonicYear, th);
+  function lobeCenter(phiDeg, r) {
+    const placementR = R_MAX + 68 + r + 6 + 10; // case radius + bezel + small gap
+    const p = deg2rad(phiDeg);
+    return { x: CX + Math.cos(p) * placementR, y: CY + Math.sin(p) * placementR };
+  }
+
+  const metonicR = 42, moonR = 62, dayDateR = 48;
+  const metonicPos = lobeCenter(55, metonicR);
+  const moonPos = lobeCenter(90, moonR);
+  const dayDatePos = lobeCenter(125, dayDateR);
+
+  drawMetonicDial(ctx, metonicPos.x, metonicPos.y, metonicR, metonicYear, th);
+  drawMoonPhase(ctx, moonPos.x, moonPos.y, moonR, moonPhase, th);
+  drawDayDateDial(ctx, dayDatePos.x, dayDatePos.y, dayDateR, dayOfYear, dateStr, currentDate.getUTCFullYear(), th);
 
   readout.textContent = currentDate.toUTCString().slice(0, 16) + `  ·  ${zodiacSign(sunGeoLon)}`;
   almanacLine.textContent = `${moonPhaseLabel(moonPhase)} · Metonic year ${metonicYear}/19 · Day ${dayOfYear}/${daysInYear}`;
@@ -854,15 +865,35 @@ function moonPhaseLabel(p) {
 // case) sweeping up either side toward the dial's horizontal diameter, then
 // thickening as it curves down to the belly that holds the complications —
 // after the swept shield panel on a classic jump-hour watch.
-const SHIELD_TIP_DEG = 15;    // how far up either side the wings climb (0=diameter)
-const SHIELD_BULGE = 210;     // how deep the belly flares out at the bottom
-const SHIELD_POWER = 0.6;     // <1 flattens the belly into a plateau instead of a round bump
+const SHIELD_TIP_DEG = 15; // how far up either side the wings climb (0=diameter)
+
+// Explicit (angle, bulge) keypoints, smoothly interpolated — three scalloped
+// lobes (Metonic / Moon / Day-Date) separated by genuine notches, rather than
+// one continuous curve. Angle convention: 90=bottom pole, 15/165=wing tips.
+const SHIELD_KEYS = [
+  [SHIELD_TIP_DEG, 0],
+  [55, 180],   // Metonic lobe peak
+  [72.5, 56],  // notch
+  [90, 250],   // Moon lobe peak (largest)
+  [107.5, 56], // notch
+  [125, 180],  // Day-Date lobe peak
+  [180 - SHIELD_TIP_DEG, 0],
+];
+
+function shieldBulgeAt(phiDeg) {
+  for (let i = 0; i < SHIELD_KEYS.length - 1; i++) {
+    const [p0, v0] = SHIELD_KEYS[i], [p1, v1] = SHIELD_KEYS[i + 1];
+    if (phiDeg >= p0 && phiDeg <= p1) {
+      const t = (phiDeg - p0) / (p1 - p0);
+      const smooth = (1 - Math.cos(Math.PI * t)) / 2;
+      return v0 + (v1 - v0) * smooth;
+    }
+  }
+  return 0;
+}
 
 function shieldOuterRadius(phiDeg) {
-  const Rcase = R_MAX + 68;
-  const span = 180 - 2 * SHIELD_TIP_DEG;
-  const s = Math.max(0, Math.sin(Math.PI * (phiDeg - SHIELD_TIP_DEG) / span));
-  return Rcase + SHIELD_BULGE * Math.pow(s, SHIELD_POWER);
+  return R_MAX + 68 + shieldBulgeAt(phiDeg);
 }
 
 function drawShieldPlate(c, cx, cy, th) {
@@ -882,7 +913,7 @@ function drawShieldPlate(c, cx, cy, th) {
   c.closePath();
 
   const tipY = Math.sin(deg2rad(SHIELD_TIP_DEG)) * Rcase;
-  const grad = c.createLinearGradient(0, tipY, 0, Rcase + SHIELD_BULGE);
+  const grad = c.createLinearGradient(0, tipY, 0, shieldOuterRadius(90));
   grad.addColorStop(0, th.caseGradStops[0]);
   grad.addColorStop(0.55, th.caseGradStops[1]);
   grad.addColorStop(1, th.caseGradStops[2]);
@@ -1015,52 +1046,33 @@ function drawMetonicDial(c, cx, cy, r, year, th) {
 }
 
 // Sweeping-hand dial tracking the day of the year against a 12-month chapter ring.
-function drawDayOfYearDial(c, cx, cy, r, dayOfYear, daysInYear, th) {
+// A classic "Day-Date" complication: two small windows in one subdial,
+// the day-of-year count on the left and the calendar date on the right.
+function drawDayDateDial(c, cx, cy, r, dayOfYear, dateStr, year, th) {
   c.save();
   c.translate(cx, cy);
 
   c.beginPath(); c.arc(0, 0, r, 0, 2 * Math.PI);
   c.fillStyle = th.subdialFace; c.fill();
 
-  for (let i = 0; i < 12; i++) {
-    const a = (i / 12) * 2 * Math.PI - Math.PI / 2;
-    c.beginPath();
-    c.moveTo(Math.cos(a) * (r - 6), Math.sin(a) * (r - 6));
-    c.lineTo(Math.cos(a) * (r - 2), Math.sin(a) * (r - 2));
-    c.strokeStyle = th.metalMid; c.lineWidth = 1.4; c.stroke();
-  }
-
-  const a = (dayOfYear / daysInYear) * 2 * Math.PI - Math.PI / 2;
-  c.beginPath();
-  c.moveTo(Math.cos(a + Math.PI) * 5, Math.sin(a + Math.PI) * 5);
-  c.lineTo(Math.cos(a) * (r - 9), Math.sin(a) * (r - 9));
-  c.strokeStyle = th.accentHand; c.lineWidth = 2; c.stroke();
-  c.beginPath(); c.arc(0, 0, 3, 0, 2 * Math.PI); c.fillStyle = '#c9a54a'; c.fill();
-
-  drawComplicationBezel(c, r, th);
-  c.restore();
-}
-
-// Classic rectangular date-window aperture, as its own subdial.
-function drawDateDial(c, cx, cy, r, dateStr, year, th) {
-  c.save();
-  c.translate(cx, cy);
-
-  c.beginPath(); c.arc(0, 0, r, 0, 2 * Math.PI);
-  c.fillStyle = th.subdialFace; c.fill();
-
-  const w = 65, h = 32;
-  c.fillStyle = th.dateWindowBg;
-  c.fillRect(-w / 2, -h / 2 - 5, w, h);
-  c.strokeStyle = th.metalDeepest; c.lineWidth = 1;
-  c.strokeRect(-w / 2, -h / 2 - 5, w, h);
-  c.fillStyle = th.dateWindowText;
-  c.font = '600 18px Cinzel, serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.fillText(dateStr, 0, -5 + 0.5);
+  const w = 38, h = 27, gap = 5;
+  [
+    { x: -w / 2 - gap / 2, text: String(dayOfYear) },
+    { x: w / 2 + gap / 2, text: dateStr },
+  ].forEach(({ x, text }) => {
+    c.fillStyle = th.dateWindowBg;
+    c.fillRect(x - w / 2, -h / 2 - 4, w, h);
+    c.strokeStyle = th.metalDeepest; c.lineWidth = 1;
+    c.strokeRect(x - w / 2, -h / 2 - 4, w, h);
+    c.fillStyle = th.dateWindowText;
+    c.font = '600 13px Cinzel, serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(text, x, -4 + 0.5);
+  });
 
   c.fillStyle = th.subdialDim;
-  c.font = '13px "Cormorant Garamond", serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.fillText('A.D. ' + year, 0, r * 0.6);
+  c.font = '11px "Cormorant Garamond", serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText('DAY' + '  ' + 'DATE', 0, -h / 2 - 4 - 9);
+  c.fillText('A.D. ' + year, 0, r * 0.62);
 
   drawComplicationBezel(c, r, th);
   c.restore();
