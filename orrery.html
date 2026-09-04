@@ -867,16 +867,20 @@ function moonPhaseLabel(p) {
 // after the swept shield panel on a classic jump-hour watch.
 const SHIELD_TIP_DEG = 15; // how far up either side the wings climb (0=diameter)
 
-// Explicit (angle, bulge) keypoints, smoothly interpolated — three scalloped
-// lobes (Metonic / Moon / Day-Date) separated by genuine notches, rather than
-// one continuous curve. Angle convention: 90=bottom pole, 15/165=wing tips.
+// Explicit (angle, bulge) keypoints, LINEARLY interpolated — straight facets
+// meeting at sharp points, for a faceted/machined look rather than a soft
+// blobby curve. Three scalloped lobes (Metonic / Moon / Day-Date), each a
+// sharp apex, separated by genuine sharp-pointed notches. Angle convention:
+// 90=bottom pole, 15/165=wing tips.
 const SHIELD_KEYS = [
   [SHIELD_TIP_DEG, 0],
-  [55, 180],   // Metonic lobe peak
+  [40, 70],
+  [55, 180],   // Metonic lobe apex
   [72.5, 56],  // notch
-  [90, 250],   // Moon lobe peak (largest)
+  [90, 250],   // Moon lobe apex (largest)
   [107.5, 56], // notch
-  [125, 180],  // Day-Date lobe peak
+  [125, 180],  // Day-Date lobe apex
+  [140, 70],
   [180 - SHIELD_TIP_DEG, 0],
 ];
 
@@ -885,8 +889,7 @@ function shieldBulgeAt(phiDeg) {
     const [p0, v0] = SHIELD_KEYS[i], [p1, v1] = SHIELD_KEYS[i + 1];
     if (phiDeg >= p0 && phiDeg <= p1) {
       const t = (phiDeg - p0) / (p1 - p0);
-      const smooth = (1 - Math.cos(Math.PI * t)) / 2;
-      return v0 + (v1 - v0) * smooth;
+      return v0 + (v1 - v0) * t;
     }
   }
   return 0;
