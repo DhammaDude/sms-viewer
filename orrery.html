@@ -212,7 +212,7 @@
 
 <div id="main">
   <div id="dial-wrap">
-    <canvas id="dial" width="860" height="1060"></canvas>
+    <canvas id="dial" width="940" height="1080"></canvas>
   </div>
 </div>
 
@@ -574,7 +574,7 @@ importInput.addEventListener('change', e => {
 // ─────────────────────────────────────────────────────────────────────────
 // Rendering
 // ─────────────────────────────────────────────────────────────────────────
-const CX = 430, CY = 430;
+const CX = 470, CY = 430;
 const R_MIN = 55, R_MAX = 340;
 const AU_MIN = Math.sqrt(0.31), AU_MAX = Math.sqrt(49.5);
 
@@ -825,11 +825,11 @@ function render() {
   const MONTH_ABBR = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
   const dateStr = `${String(currentDate.getUTCDate()).padStart(2, '0')} ${MONTH_ABBR[currentDate.getUTCMonth()]}`;
 
-  const rowY = CY + 470;
-  drawMoonPhase(ctx, CX - 190, rowY, 48, moonPhase, th);
-  drawDateDial(ctx, CX - 65, rowY, 48, dateStr, currentDate.getUTCFullYear(), th);
-  drawDayOfYearDial(ctx, CX + 65, rowY, 48, dayOfYear, daysInYear, th);
-  drawMetonicDial(ctx, CX + 190, rowY + 8, 50, metonicYear, th);
+  const rowY = CY + 480;
+  drawMoonPhase(ctx, CX - 180, rowY, 58, moonPhase, th);
+  drawDateDial(ctx, CX - 46, rowY, 48, dateStr, currentDate.getUTCFullYear(), th);
+  drawDayOfYearDial(ctx, CX + 78, rowY, 48, dayOfYear, daysInYear, th);
+  drawMetonicDial(ctx, CX + 196, rowY + 8, 42, metonicYear, th);
 
   readout.textContent = currentDate.toUTCString().slice(0, 16) + `  ·  ${zodiacSign(sunGeoLon)}`;
   almanacLine.textContent = `${moonPhaseLabel(moonPhase)} · Metonic year ${metonicYear}/19 · Day ${dayOfYear}/${daysInYear}`;
@@ -854,13 +854,15 @@ function moonPhaseLabel(p) {
 // case) sweeping up either side toward the dial's horizontal diameter, then
 // thickening as it curves down to the belly that holds the complications —
 // after the swept shield panel on a classic jump-hour watch.
-const SHIELD_TIP_DEG = 15;   // how far up either side the wings climb (0=diameter)
-const SHIELD_BULGE = 190;    // how deep the belly flares out at the bottom
+const SHIELD_TIP_DEG = 15;    // how far up either side the wings climb (0=diameter)
+const SHIELD_BULGE = 210;     // how deep the belly flares out at the bottom
+const SHIELD_POWER = 0.6;     // <1 flattens the belly into a plateau instead of a round bump
 
 function shieldOuterRadius(phiDeg) {
   const Rcase = R_MAX + 68;
   const span = 180 - 2 * SHIELD_TIP_DEG;
-  return Rcase + SHIELD_BULGE * Math.sin(Math.PI * (phiDeg - SHIELD_TIP_DEG) / span);
+  const s = Math.max(0, Math.sin(Math.PI * (phiDeg - SHIELD_TIP_DEG) / span));
+  return Rcase + SHIELD_BULGE * Math.pow(s, SHIELD_POWER);
 }
 
 function drawShieldPlate(c, cx, cy, th) {
@@ -871,8 +873,8 @@ function drawShieldPlate(c, cx, cy, th) {
   c.beginPath();
   // inner edge: the case circle itself, wing tip to wing tip through the bottom pole
   c.arc(0, 0, Rcase, deg2rad(180 - SHIELD_TIP_DEG), deg2rad(SHIELD_TIP_DEG), true);
-  // outer edge: swept back across, bulging out toward the belly
-  for (let phi = SHIELD_TIP_DEG; phi <= 180 - SHIELD_TIP_DEG + 0.01; phi += 2) {
+  // outer edge: swept back across, flattening into a plateau across the belly
+  for (let phi = SHIELD_TIP_DEG; phi <= 180 - SHIELD_TIP_DEG + 0.01; phi += 1.5) {
     const R = shieldOuterRadius(phi);
     const p = deg2rad(phi);
     c.lineTo(Math.cos(p) * R, Math.sin(p) * R);
@@ -890,17 +892,38 @@ function drawShieldPlate(c, cx, cy, th) {
   c.lineWidth = 2;
   c.stroke();
 
-  // a fine inset outline, a hair inside the outer edge, for a rimmed/machined look
+  // fluted edge — reeded ticks following the outer curve, like a coin's edge
+  for (let phi = SHIELD_TIP_DEG; phi <= 180 - SHIELD_TIP_DEG; phi += 2) {
+    const R = shieldOuterRadius(phi);
+    const p = deg2rad(phi);
+    const x = Math.cos(p) * R, y = Math.sin(p) * R;
+    const p2 = deg2rad(phi + 0.6);
+    const R2 = shieldOuterRadius(phi + 0.6);
+    const tx = Math.cos(p2) * R2 - x, ty = Math.sin(p2) * R2 - y;
+    const tlen = Math.hypot(tx, ty) || 1;
+    let nx = ty / tlen, ny = -tx / tlen;
+    if (nx * x + ny * y < 0) { nx = -nx; ny = -ny; } // keep the normal pointing outward
+    c.beginPath();
+    c.moveTo(x - nx * 9, y - ny * 9);
+    c.lineTo(x + nx * 1.5, y + ny * 1.5);
+    c.strokeStyle = (Math.round(phi / 2)) % 2 === 0 ? th.fluteDark : th.fluteLight;
+    c.lineWidth = 1.3;
+    c.stroke();
+  }
+
+  // a fine inset outline, a hair inside the flutes, for a rimmed/machined look
   c.beginPath();
   for (let phi = SHIELD_TIP_DEG + 3; phi <= 180 - SHIELD_TIP_DEG - 3; phi += 2) {
-    const R = shieldOuterRadius(phi) - 8;
+    const R = shieldOuterRadius(phi) - 11;
     const p = deg2rad(phi);
     const x = Math.cos(p) * R, y = Math.sin(p) * R;
     if (phi === SHIELD_TIP_DEG + 3) c.moveTo(x, y); else c.lineTo(x, y);
   }
-  c.strokeStyle = th.fluteDark;
+  c.strokeStyle = th.metalDeepest;
   c.lineWidth = 1;
+  c.globalAlpha = 0.5;
   c.stroke();
+  c.globalAlpha = 1;
 
   // rivets at the two wing tips, echoing the sun hub's screws
   [SHIELD_TIP_DEG, 180 - SHIELD_TIP_DEG].forEach(phiDeg => {
@@ -930,9 +953,9 @@ function drawMoonPhase(c, cx, cy, r, phase, th) {
   c.fillStyle = '#0e1a24'; c.fill();
 
   // faint fixed starfield for a night-sky moonphase face (kept dark in both themes, like a "panda dial" register)
-  const stars = [[-20,-15],[12,-21],[20,4],[-11,19],[4,24],[-21,7],[15,16]];
+  const stars = [[-24,-18],[15,-25],[24,5],[-13,23],[5,29],[-25,9],[18,19]];
   c.fillStyle = 'rgba(236,226,196,0.5)';
-  stars.forEach(([sx, sy]) => { c.beginPath(); c.arc(sx, sy, 0.9, 0, 2 * Math.PI); c.fill(); });
+  stars.forEach(([sx, sy]) => { c.beginPath(); c.arc(sx, sy, 1, 0, 2 * Math.PI); c.fill(); });
 
   const theta = phase * 2 * Math.PI;
   const rx = r * Math.abs(Math.cos(theta));
@@ -1026,17 +1049,17 @@ function drawDateDial(c, cx, cy, r, dateStr, year, th) {
   c.beginPath(); c.arc(0, 0, r, 0, 2 * Math.PI);
   c.fillStyle = th.subdialFace; c.fill();
 
-  const w = 54, h = 27;
+  const w = 65, h = 32;
   c.fillStyle = th.dateWindowBg;
-  c.fillRect(-w / 2, -h / 2 - 4, w, h);
+  c.fillRect(-w / 2, -h / 2 - 5, w, h);
   c.strokeStyle = th.metalDeepest; c.lineWidth = 1;
-  c.strokeRect(-w / 2, -h / 2 - 4, w, h);
+  c.strokeRect(-w / 2, -h / 2 - 5, w, h);
   c.fillStyle = th.dateWindowText;
-  c.font = '600 15px Cinzel, serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.fillText(dateStr, 0, -4 + 0.5);
+  c.font = '600 18px Cinzel, serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText(dateStr, 0, -5 + 0.5);
 
   c.fillStyle = th.subdialDim;
-  c.font = '11px "Cormorant Garamond", serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.font = '13px "Cormorant Garamond", serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
   c.fillText('A.D. ' + year, 0, r * 0.6);
 
   drawComplicationBezel(c, r, th);
