@@ -1141,19 +1141,25 @@ function moonPhaseLabel(p) {
 // case) sweeping up either side toward the dial's horizontal diameter, then
 // thickening as it curves down to the belly that holds the complications —
 // after the swept shield panel on a classic jump-hour watch.
-const SHIELD_TIP_DEG = 15; // how far up either side the wings climb (0=diameter)
+const SHIELD_TIP_DEG = 20; // how far up either side the wings climb (0=diameter) — pulled in from 15 for a smaller footprint
 
-// A flat-topped ziggurat: three wide plateaus (Metonic / Moon / Day-Date) at
-// three fixed heights, joined by sharp vertical risers rather than a sloped
-// facet or a curve. Angle convention: 90=bottom pole, 15/165=wing tips.
-// Levels, widest to narrowest: flush wingtips -> Metonic/Day-Date tier ->
-// Moon tier (tallest, centered on the bottom pole).
+// A flat-topped ziggurat, mirror-symmetric about the bottom pole (90), with
+// five distinct plateaus per side instead of three: flush wingtip -> a bare
+// "shoulder" step -> the Metonic/Day-Date tier -> a bare "rise" step -> the
+// Moon tier at the peak. The bare shoulder/rise steps exist purely to add
+// more visible stair-stepping between the named complications; only the
+// Metonic/Moon/Day-Date tiers need to be tall enough to actually frame their
+// dial. Overall peak height is lower than before, for a smaller plate.
 const SHIELD_STEPS = [
-  [35, 0],    // flush with the case out to here
-  [75, 170],  // Metonic plateau
-  [105, 250], // Moon plateau (tallest, largest)
-  [145, 170], // Day-Date plateau
-  [180, 0],   // flush with the case from here to the far wingtip
+  [33, 0],     // flush with the case out to here
+  [44, 55],    // shoulder
+  [59, 160],   // Metonic plateau
+  [72, 180],   // rise
+  [108, 200],  // Moon plateau (peak, centered on the bottom pole)
+  [121, 180],  // rise (mirrored)
+  [136, 160],  // Day-Date plateau
+  [147, 55],   // shoulder (mirrored)
+  [180, 0],    // flush with the case from here to the far wingtip
 ];
 
 function shieldBulgeAt(phiDeg) {
