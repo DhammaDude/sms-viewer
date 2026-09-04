@@ -4,6 +4,13 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Digital Antikythera Mechanism</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<meta name="theme-color" content="#120e08" id="theme-color-meta" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Antikythera" />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Spectral:wght@400;500;600&display=swap">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -356,6 +363,8 @@ function applyTheme() {
   else document.documentElement.removeAttribute('data-theme');
   themeToggleBtn.textContent = currentThemeName === 'brass' ? 'Steel Case' : 'Brass Case';
   localStorage.setItem('antikythera-theme', currentThemeName);
+  const themeColorMeta = document.getElementById('theme-color-meta');
+  if (themeColorMeta) themeColorMeta.content = currentThemeName === 'steel' ? '#eef0f2' : '#120e08';
 }
 
 function deg2rad(d) { return d * Math.PI / 180; }
@@ -1418,6 +1427,12 @@ dial.addEventListener('click', e => {
 
 setDate(new Date());
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(render);
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* offline support just won't be available */ });
+  });
+}
 </script>
 </body>
 </html>
