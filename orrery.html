@@ -448,6 +448,11 @@ function tick() {
   playTimer = setTimeout(tick, 1000 / 30);
 }
 
+// Keeps the real-time clock ring's second marker sweeping even while the
+// orrery's own simulated date is paused (the play loop above already
+// re-renders often enough to cover the playing case).
+setInterval(() => { if (!playing) render(); }, 1000);
+
 // ─────────────────────────────────────────────────────────────────────────
 // JSON import / export (for external data analysis)
 // ─────────────────────────────────────────────────────────────────────────
@@ -628,6 +633,65 @@ function drawFlutedRing(c, cx, cy, rIn, rOut, flutes, th) {
   c.restore();
 }
 
+// A genuine working clock — hour/minute/second markers confined to the case
+// ring's own band (R_MAX+52..+68), so nothing crosses the planetary face.
+// Clock angle convention (0=12 o'clock, clockwise) is converted to this
+// dial's own (0=3 o'clock, counterclockwise) convention via a = 90 - theta.
+function drawTimeRing(c, cx, cy, th) {
+  const now = new Date();
+  const h = now.getHours() % 12, m = now.getMinutes(), s = now.getSeconds(), ms = now.getMilliseconds();
+  const secFrac = s + ms / 1000;
+  const minFrac = m + secFrac / 60;
+  const hourFrac = h + minFrac / 60;
+
+  const rIn = R_MAX + 52, rOut = R_MAX + 68;
+  c.save();
+  c.translate(cx, cy);
+
+  // 60 minute ticks, 12 of them bolder as hour marks
+  for (let i = 0; i < 60; i++) {
+    const theta = i * 6;
+    const a = deg2rad(90 - theta);
+    const isHour = i % 5 === 0;
+    const tickIn = isHour ? rOut - 9 : rOut - 4;
+    c.beginPath();
+    c.moveTo(Math.cos(a) * tickIn, -Math.sin(a) * tickIn);
+    c.lineTo(Math.cos(a) * rOut, -Math.sin(a) * rOut);
+    c.strokeStyle = isHour ? th.metalDeepest : th.metalDark;
+    c.lineWidth = isHour ? 2 : 1;
+    c.stroke();
+  }
+
+  // hour marker — short, thick, innermost
+  const ah = deg2rad(90 - hourFrac * 30);
+  c.beginPath();
+  c.moveTo(Math.cos(ah) * (rIn + 1), -Math.sin(ah) * (rIn + 1));
+  c.lineTo(Math.cos(ah) * (rIn + 7), -Math.sin(ah) * (rIn + 7));
+  c.strokeStyle = th.metalDeepest; c.lineWidth = 3; c.lineCap = 'round';
+  c.stroke();
+
+  // minute marker — medium
+  const am = deg2rad(90 - minFrac * 6);
+  c.beginPath();
+  c.moveTo(Math.cos(am) * (rIn + 1), -Math.sin(am) * (rIn + 1));
+  c.lineTo(Math.cos(am) * (rOut - 3), -Math.sin(am) * (rOut - 3));
+  c.strokeStyle = th.metalDeepest; c.lineWidth = 2; c.lineCap = 'round';
+  c.stroke();
+
+  // second marker — thin, bright accent, sweeps continuously
+  const as = deg2rad(90 - secFrac * 6);
+  c.beginPath();
+  c.moveTo(Math.cos(as) * (rIn + 1), -Math.sin(as) * (rIn + 1));
+  c.lineTo(Math.cos(as) * (rOut - 1), -Math.sin(as) * (rOut - 1));
+  c.strokeStyle = th.accentHand; c.lineWidth = 1.4; c.lineCap = 'round';
+  c.stroke();
+  c.beginPath(); c.arc(Math.cos(as) * (rIn + 1), -Math.sin(as) * (rIn + 1), 1.8, 0, 2 * Math.PI);
+  c.fillStyle = th.accentHand; c.fill();
+
+  c.lineCap = 'butt';
+  c.restore();
+}
+
 // Text set along a circular arc, letter by letter — for engraved dial branding.
 function drawArcText(c, cx, cy, radius, text, centerAngleDeg, spreadDeg, color, font) {
   c.save();
@@ -668,6 +732,11 @@ function render() {
 
   // polished case ring (outermost)
   drawFlutedRing(ctx, CX, CY, R_MAX + 52, R_MAX + 68, 140, th);
+
+  // a real, ticking clock — hour/minute/second markers on the case ring's
+  // own band, confined entirely to that band so nothing crosses the
+  // planetary face itself
+  drawTimeRing(ctx, CX, CY, th);
 
   // movement ring — gear teeth plus engraved dial branding
   drawGearRing(ctx, CX, CY, R_MAX + 34, R_MAX + 48, 96, th);
@@ -833,7 +902,7 @@ function render() {
     return { x: CX + Math.cos(p) * placementR, y: CY + Math.sin(p) * placementR };
   }
 
-  const metonicR = 42, moonR = 62, dayDateR = 48;
+  const metonicR = 52, moonR = 76, dayDateR = 58;
   const metonicPos = lobeCenter(55, metonicR);
   const moonPos = lobeCenter(90, moonR);
   const dayDatePos = lobeCenter(125, dayDateR);
@@ -987,7 +1056,7 @@ function drawMoonPhase(c, cx, cy, r, phase, th) {
   c.fillStyle = '#0e1a24'; c.fill();
 
   // faint fixed starfield for a night-sky moonphase face (kept dark in both themes, like a "panda dial" register)
-  const stars = [[-24,-18],[15,-25],[24,5],[-13,23],[5,29],[-25,9],[18,19]];
+  const stars = [[-29,-22],[18,-31],[29,6],[-16,28],[6,36],[-31,11],[22,23]];
   c.fillStyle = 'rgba(236,226,196,0.5)';
   stars.forEach(([sx, sy]) => { c.beginPath(); c.arc(sx, sy, 1, 0, 2 * Math.PI); c.fill(); });
 
@@ -1032,7 +1101,7 @@ function drawMetonicDial(c, cx, cy, r, year, th) {
     c.moveTo(Math.cos(a) * (r - 11), Math.sin(a) * (r - 11));
     c.lineTo(Math.cos(a) * (r - 2), Math.sin(a) * (r - 2));
     c.strokeStyle = th.metalMid; c.lineWidth = 1; c.stroke();
-    c.fillStyle = th.subdialDim; c.font = '600 10px Cinzel, serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillStyle = th.subdialDim; c.font = '600 12px Cinzel, serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
     c.fillText(y, Math.cos(a) * (r - 20), Math.sin(a) * (r - 20));
   });
 
@@ -1043,12 +1112,20 @@ function drawMetonicDial(c, cx, cy, r, year, th) {
   c.strokeStyle = th.accentHand; c.lineWidth = 2; c.stroke();
   c.beginPath(); c.arc(0, 0, 3, 0, 2 * Math.PI); c.fillStyle = '#c9a54a'; c.fill();
 
-  c.beginPath(); c.arc(0, 0, r + 6, Math.PI, 2 * Math.PI); c.strokeStyle = th.metalBright; c.lineWidth = 2; c.stroke();
-  c.beginPath(); c.arc(0, 0, r + 2, Math.PI, 2 * Math.PI); c.strokeStyle = th.metalMid; c.lineWidth = 1; c.stroke();
+  // bezel traces the fan's own silhouette (arc + wedge sides closed), not a
+  // mismatched full circle, so the rim actually frames the shape beneath it
+  [r + 6, r + 2].forEach((rr, i) => {
+    c.beginPath();
+    c.arc(0, 0, rr, Math.PI, 2 * Math.PI);
+    c.lineTo(-rr * 0.55, rr * 0.35);
+    c.closePath();
+    c.strokeStyle = i === 0 ? th.metalBright : th.metalMid;
+    c.lineWidth = i === 0 ? 2 : 1;
+    c.stroke();
+  });
   c.restore();
 }
 
-// Sweeping-hand dial tracking the day of the year against a 12-month chapter ring.
 // A classic "Day-Date" complication: two small windows in one subdial,
 // the day-of-year count on the left and the calendar date on the right.
 function drawDayDateDial(c, cx, cy, r, dayOfYear, dateStr, year, th) {
@@ -1058,23 +1135,23 @@ function drawDayDateDial(c, cx, cy, r, dayOfYear, dateStr, year, th) {
   c.beginPath(); c.arc(0, 0, r, 0, 2 * Math.PI);
   c.fillStyle = th.subdialFace; c.fill();
 
-  const w = 38, h = 27, gap = 5;
+  const w = 46, h = 33, gap = 6;
   [
     { x: -w / 2 - gap / 2, text: String(dayOfYear) },
     { x: w / 2 + gap / 2, text: dateStr },
   ].forEach(({ x, text }) => {
     c.fillStyle = th.dateWindowBg;
-    c.fillRect(x - w / 2, -h / 2 - 4, w, h);
+    c.fillRect(x - w / 2, -h / 2 - 5, w, h);
     c.strokeStyle = th.metalDeepest; c.lineWidth = 1;
-    c.strokeRect(x - w / 2, -h / 2 - 4, w, h);
+    c.strokeRect(x - w / 2, -h / 2 - 5, w, h);
     c.fillStyle = th.dateWindowText;
-    c.font = '600 13px Cinzel, serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.fillText(text, x, -4 + 0.5);
+    c.font = '600 16px Cinzel, serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(text, x, -5 + 0.5);
   });
 
   c.fillStyle = th.subdialDim;
-  c.font = '11px "Cormorant Garamond", serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.fillText('DAY' + '  ' + 'DATE', 0, -h / 2 - 4 - 9);
+  c.font = '13px "Cormorant Garamond", serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText('DAY' + '  ' + 'DATE', 0, -h / 2 - 5 - 10);
   c.fillText('A.D. ' + year, 0, r * 0.62);
 
   drawComplicationBezel(c, r, th);
