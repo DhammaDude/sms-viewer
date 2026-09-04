@@ -4,26 +4,75 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Digital Antikythera Mechanism</title>
+<meta name="description" content="An astronomically accurate orrery for all 9 planets, styled as an antique brass pocket watch with lunar, calendar, and eclipse-prediction complications. Runs entirely in your browser." />
+<link rel="canonical" href="https://dhammadude.github.io/sms-viewer/orrery.html" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Digital Antikythera Mechanism" />
+<meta property="og:description" content="An astronomically accurate orrery for all 9 planets, styled as an antique brass pocket watch with lunar, calendar, and eclipse-prediction complications." />
+<meta property="og:url" content="https://dhammadude.github.io/sms-viewer/orrery.html" />
+<meta property="og:image" content="https://dhammadude.github.io/sms-viewer/icons/icon-512.png" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="Digital Antikythera Mechanism" />
+<meta name="twitter:description" content="An astronomically accurate orrery for all 9 planets, styled as an antique brass pocket watch with lunar, calendar, and eclipse-prediction complications." />
+<meta name="twitter:image" content="https://dhammadude.github.io/sms-viewer/icons/icon-512.png" />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<meta name="theme-color" content="#120e08" id="theme-color-meta" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Antikythera" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Spectral:wght@400;500;600&display=swap">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg: #14100a;
-    --panel: #1d160d;
+    --bg: #120e08;
+    --bg-glow: #241a0d;
+    --panel: #1b140c;
     --panel2: #241b10;
-    --border: #4a371f;
-    --brass: #c9a227;
+    --border: #55401f;
+    --brass: #c9a54a;
     --brass-dim: #8a6a35;
-    --parchment: #e9dcb8;
+    --ivory: #ece2c4;
+    --ink: #211a10;
+    --parchment: #e7ddc0;
     --muted: #9c8b66;
-    --accent: #d97a3a;
-    --danger: #d1583f;
+    --accent: #c46a3a;
+    --danger: #a8402b;
+    --input-bg: #0f0b06;
+    --ctl-hover-bg: #34260f;
+    --ctl-active-text: #241b10;
+    --row-active-bg: #2c2011;
+    --font-display: "Cinzel", "Cormorant Garamond", Georgia, serif;
+    --font-heading: "Cormorant Garamond", Georgia, serif;
+    --font-body: "Spectral", "Iowan Old Style", Georgia, serif;
+  }
+
+  :root[data-theme="light"] {
+    --bg: #eef0f2;
+    --bg-glow: #ffffff;
+    --panel: #f8f9fa;
+    --panel2: #e9ebee;
+    --border: #c4cbd1;
+    --brass: #55606b;
+    --brass-dim: #7b848c;
+    --ivory: #ffffff;
+    --ink: #202427;
+    --parchment: #2a2f34;
+    --muted: #6b747c;
+    --accent: #2f5f7a;
+    --danger: #a8402b;
+    --input-bg: #ffffff;
+    --ctl-hover-bg: #dde1e5;
+    --ctl-active-text: #ffffff;
+    --row-active-bg: #e3e7ea;
   }
 
   body {
-    background: radial-gradient(ellipse at 50% 0%, #221a10 0%, var(--bg) 70%);
+    background: radial-gradient(ellipse at 50% 0%, var(--bg-glow) 0%, var(--bg) 70%);
     color: var(--parchment);
-    font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    font-family: var(--font-body);
     font-size: 14px;
     height: 100dvh;
     display: flex;
@@ -37,25 +86,35 @@
     display: flex; flex-direction: column; overflow: hidden;
     background: var(--panel);
   }
-  #sidebar-header { padding: 18px 18px 12px; border-bottom: 1px solid var(--border); }
-  #sidebar-header h1 { font-size: 17px; font-weight: 700; letter-spacing: .03em; color: var(--brass); }
-  #sidebar-header .sub { font-size: 11px; color: var(--muted); margin-top: 4px; letter-spacing: .06em; text-transform: uppercase; }
+  #sidebar-header { padding: 18px 18px 14px; border-bottom: 1px solid var(--border); }
+  #sidebar-header h1 {
+    font-family: var(--font-display); font-size: 17px; font-weight: 600;
+    letter-spacing: .08em; color: var(--brass); text-transform: uppercase;
+  }
+  #sidebar-header .sub {
+    font-family: var(--font-heading); font-style: italic; font-size: 13px;
+    color: var(--muted); margin-top: 5px;
+  }
 
   .controls { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
-  .controls label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; display: block; margin-bottom: 4px; }
+  .controls label {
+    font-family: var(--font-display); font-size: 10px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .12em; display: block; margin-bottom: 4px;
+  }
   .row { display: flex; gap: 8px; align-items: center; }
   input[type="date"], select {
-    flex: 1; background: #0f0b06; border: 1px solid var(--border); color: var(--parchment);
-    padding: 6px 8px; border-radius: 6px; font-size: 13px; font-family: inherit;
+    flex: 1; background: var(--input-bg); border: 1px solid var(--border); color: var(--parchment);
+    padding: 6px 8px; border-radius: 4px; font-size: 13px; font-family: var(--font-body);
   }
   button.ctl {
     background: var(--panel2); border: 1px solid var(--border); color: var(--brass);
-    padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; font-family: inherit;
-    transition: background .15s;
+    padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-family: var(--font-display);
+    letter-spacing: .04em; transition: background .15s;
   }
-  button.ctl:hover { background: #34260f; }
-  button.ctl.active { background: var(--brass); color: #241b10; }
-  #datetime-readout { font-size: 12px; color: var(--muted); text-align: center; }
+  button.ctl:hover { background: var(--ctl-hover-bg); }
+  button.ctl.active { background: var(--brass); color: var(--ctl-active-text); }
+  #theme-toggle { font-family: var(--font-display); font-size: 11px; letter-spacing: .06em; }
+  #datetime-readout { font-family: var(--font-body); font-size: 12px; color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }
 
   #planet-list { flex: 1; overflow-y: auto; padding: 6px 0; }
   .planet-row {
@@ -63,24 +122,56 @@
     border-left: 3px solid transparent; transition: background .12s;
   }
   .planet-row:hover { background: var(--panel2); }
-  .planet-row.active { background: #2c2011; border-left-color: var(--accent); }
+  .planet-row.active { background: var(--row-active-bg); border-left-color: var(--accent); }
   .p-glyph { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; border: 1px solid var(--border); }
   .p-info { flex: 1; min-width: 0; }
-  .p-name { font-weight: 700; font-size: 13px; }
-  .p-meta { font-size: 11px; color: var(--muted); }
-  .p-rx { font-size: 10px; color: var(--danger); font-weight: 700; margin-left: 4px; }
+  .p-name { font-family: var(--font-heading); font-weight: 600; font-size: 15px; }
+  .p-meta { font-family: var(--font-body); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .p-rx { font-family: var(--font-display); font-size: 10px; color: var(--danger); font-weight: 700; margin-left: 4px; }
 
   #detail-panel { border-top: 1px solid var(--border); padding: 14px 18px; font-size: 12px; color: var(--muted); min-height: 92px; }
-  #detail-panel h3 { color: var(--brass); font-size: 13px; margin-bottom: 6px; }
-  #detail-panel div { line-height: 1.6; }
+  #detail-panel h3 { font-family: var(--font-heading); font-style: italic; color: var(--brass); font-size: 17px; font-weight: 600; margin-bottom: 6px; }
+  #detail-panel div { line-height: 1.7; font-variant-numeric: tabular-nums; }
 
   /* ── Main dial area ── */
-  #main { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: auto; padding: 20px; }
-  #dial-wrap { position: relative; }
-  canvas { display: block; }
+  #main { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: auto; padding: 20px; min-width: 0; min-height: 0; }
+  #dial-wrap { position: relative; max-width: 100%; }
+  canvas#dial { display: block; max-width: 100%; height: auto; }
+  #dial-wrap.compact canvas#dial {
+    aspect-ratio: 940 / 856;
+    object-fit: cover;
+    object-position: top;
+    height: auto;
+  }
 
-  #subdials { position: absolute; bottom: 24px; left: 24px; display: flex; gap: 14px; }
-  .subdial-label { text-align: center; font-size: 10px; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; margin-top: 4px; }
+  #almanac-line { font-family: var(--font-heading); font-style: italic; font-size: 12px; color: var(--muted); text-align: center; margin-top: 2px; }
+
+  @media (max-width: 820px) {
+    body { flex-direction: column; height: auto; min-height: 100dvh; overflow: auto; }
+    #sidebar { width: 100%; min-width: 0; border-right: none; border-bottom: 1px solid var(--border); max-height: none; }
+    #planet-list { flex: none; max-height: 240px; }
+    #main { padding: 12px; }
+  }
+
+  /* ── JSON export/import modal ── */
+  #json-modal {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7);
+    z-index: 300; align-items: center; justify-content: center; padding: 16px;
+  }
+  #json-modal-box {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    width: min(640px, 100%); max-height: 85vh; display: flex; flex-direction: column;
+    padding: 14px; gap: 10px;
+  }
+  #json-modal-head { display: flex; align-items: center; justify-content: space-between; }
+  #json-modal-title { color: var(--brass); font-weight: 700; font-size: 13px; word-break: break-all; }
+  #json-modal-textarea {
+    flex: 1; min-height: 240px; background: #0f0b06; border: 1px solid var(--border); color: var(--parchment);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; padding: 10px; border-radius: 6px;
+    resize: vertical; white-space: pre; overflow: auto;
+  }
+  #json-modal-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  #json-modal-hint { font-size: 11px; color: var(--muted); }
 
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -91,8 +182,14 @@
 
 <div id="sidebar">
   <div id="sidebar-header">
-    <h1>⚙ Digital Antikythera</h1>
-    <div class="sub">A mechanism of nine wandering stars</div>
+    <div class="row" style="justify-content: space-between; align-items: flex-start;">
+      <h1>Antikythera</h1>
+      <div class="row" style="gap: 6px;">
+        <button class="ctl" id="compact-toggle" title="Show just the dial, hide the complications plate">Compact</button>
+        <button class="ctl" id="theme-toggle" title="Switch case material">Steel</button>
+      </div>
+    </div>
+    <div class="sub">An orrery complication, nine spheres</div>
   </div>
 
   <div class="controls">
@@ -110,13 +207,40 @@
         <select id="speed-select">
           <option value="86400000">1 day / sec</option>
           <option value="604800000">1 week / sec</option>
-          <option value="2629800000" selected>1 month / sec</option>
-          <option value="31557600000">1 year / sec</option>
+          <option value="2629800000">1 month / sec</option>
+          <option value="31557600000" selected>1 year / sec</option>
           <option value="315576000000">10 years / sec</option>
+          <option value="3155760000000">100 years / sec</option>
         </select>
       </div>
     </div>
     <div id="datetime-readout">—</div>
+    <div id="almanac-line">—</div>
+    <div>
+      <label>Quick Jump</label>
+      <div class="row">
+        <button class="ctl" id="jump-new-moon-btn">Next New Moon</button>
+        <button class="ctl" id="jump-full-moon-btn">Next Full Moon</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button class="ctl" id="jump-solar-eclipse-btn">Next Solar Eclipse</button>
+        <button class="ctl" id="jump-lunar-eclipse-btn">Next Lunar Eclipse</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button class="ctl" id="jump-retrograde-btn">Next Retrograde</button>
+      </div>
+    </div>
+    <div>
+      <label>Data</label>
+      <div class="row">
+        <button class="ctl" id="export-btn" title="Export the current date's full computed state">Export Snapshot</button>
+        <button class="ctl" id="export-range-btn" title="Export a time series across a date range">Export Range</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button class="ctl" id="import-btn" title="Load a previously exported snapshot">Import JSON</button>
+        <input type="file" id="import-input" accept="application/json,.json" style="display:none" />
+      </div>
+    </div>
   </div>
 
   <div id="planet-list"></div>
@@ -129,17 +253,22 @@
 
 <div id="main">
   <div id="dial-wrap">
-    <canvas id="dial" width="760" height="760"></canvas>
-    <div id="subdials">
-      <div>
-        <canvas id="moon-dial" width="90" height="90"></canvas>
-        <div class="subdial-label">Lunar Phase</div>
-      </div>
-      <div>
-        <canvas id="metonic-dial" width="90" height="90"></canvas>
-        <div class="subdial-label">Metonic Cycle</div>
-      </div>
+    <canvas id="dial" width="940" height="1130" role="img" aria-label="Orrery dial showing the positions of the nine planets, moon phase, day-date, and Metonic cycle complications."></canvas>
+  </div>
+</div>
+
+<div id="json-modal">
+  <div id="json-modal-box">
+    <div id="json-modal-head">
+      <span id="json-modal-title">export.json</span>
+      <button class="ctl" id="json-modal-close">✕</button>
     </div>
+    <textarea id="json-modal-textarea" readonly></textarea>
+    <div id="json-modal-actions">
+      <button class="ctl" id="json-modal-copy">Copy to Clipboard</button>
+      <button class="ctl" id="json-modal-download">Try Direct Download</button>
+    </div>
+    <div id="json-modal-hint">If Copy doesn't work either, tap-and-hold inside the text above to select it manually.</div>
   </div>
 </div>
 
@@ -181,11 +310,147 @@ const PLANETS = [
 
 const ZODIAC = ['♈ Aries','♉ Taurus','♊ Gemini','♋ Cancer','♌ Leo','♍ Virgo','♎ Libra','♏ Scorpio','♐ Sagittarius','♑ Capricorn','♒ Aquarius','♓ Pisces'];
 
+// ─────────────────────────────────────────────────────────────────────────
+// Case material themes — "brass" (dark lacquer) and "steel" (white/stainless)
+// ─────────────────────────────────────────────────────────────────────────
+const THEMES = {
+  brass: {
+    caseBg: '#120e08',
+    zodiacAlt: ['rgba(201,165,74,0.16)', 'rgba(201,165,74,0.045)'],
+    currentGlow: '#f2c34d',
+    currentFill: 'rgba(242,195,77,0.55)',
+    metalDark: '#4a371f',
+    metalMid: '#8a6a35',
+    metalBright: '#c9a54a',
+    metalDeepest: '#2b2010',
+    fluteLight: 'rgba(255,244,214,0.22)',
+    fluteDark: 'rgba(0,0,0,0.28)',
+    caseGradStops: ['#4a3717', '#d8b45e', '#5c451f'],
+    brandText: '#f2e6bf',
+    glyphDefault: '#c9a227',
+    glyphCurrent: '#fff3c9',
+    fineTick: 'rgba(74,55,31,0.8)',
+    orbitRing: 'rgba(201,162,39,0.18)',
+    accentHand: '#c46a3a',
+    selectedStroke: '#fff3c9',
+    defaultStroke: '#1d160d',
+    subdialFace: '#1e1710',
+    subdialDim: '#9c8b66',
+    dateWindowBg: '#ece2c4',
+    dateWindowText: '#211a10',
+  },
+  steel: {
+    caseBg: '#e4e7ea',
+    zodiacAlt: ['rgba(60,70,80,0.09)', 'rgba(255,255,255,0.6)'],
+    currentGlow: '#b8862c',
+    currentFill: 'rgba(184,134,44,0.4)',
+    metalDark: '#aab2b9',
+    metalMid: '#7b848c',
+    metalBright: '#c4cbd1',
+    metalDeepest: '#3a3f44',
+    fluteLight: 'rgba(255,255,255,0.75)',
+    fluteDark: 'rgba(58,63,68,0.30)',
+    caseGradStops: ['#9aa3ab', '#ffffff', '#8b95a0'],
+    brandText: '#2a2f34',
+    glyphDefault: '#5b6570',
+    glyphCurrent: '#201a10',
+    fineTick: 'rgba(120,130,138,0.85)',
+    orbitRing: 'rgba(70,80,90,0.22)',
+    accentHand: '#2f5f7a',
+    selectedStroke: '#201a10',
+    defaultStroke: '#f4f5f6',
+    subdialFace: '#1c2024',
+    subdialDim: '#8b95a0',
+    dateWindowBg: '#f5f6f7',
+    dateWindowText: '#202427',
+  },
+};
+
+let currentThemeName = localStorage.getItem('antikythera-theme') || 'brass';
+function theme() { return THEMES[currentThemeName]; }
+
+function applyTheme() {
+  if (currentThemeName === 'steel') document.documentElement.setAttribute('data-theme', 'light');
+  else document.documentElement.removeAttribute('data-theme');
+  themeToggleBtn.textContent = currentThemeName === 'brass' ? 'Steel Case' : 'Brass Case';
+  localStorage.setItem('antikythera-theme', currentThemeName);
+  const themeColorMeta = document.getElementById('theme-color-meta');
+  if (themeColorMeta) themeColorMeta.content = currentThemeName === 'steel' ? '#eef0f2' : '#120e08';
+}
+
 function deg2rad(d) { return d * Math.PI / 180; }
 function rad2deg(r) { return r * 180 / Math.PI; }
 function normDeg(x) { x = x % 360; return x < 0 ? x + 360 : x; }
 
 function toJulianDate(date) { return date.getTime() / 86400000 + 2440587.5; }
+function fromJulianDate(jd) { return new Date((jd - 2440587.5) * 86400000); }
+
+const SYNODIC_MONTH = 29.530588853;
+const NEW_MOON_REF_JD = 2451550.1; // 2000-01-06 18:14 UT, a known new moon
+
+function moonPhaseAt(date) {
+  const jd = toJulianDate(date);
+  return (((jd - NEW_MOON_REF_JD) % SYNODIC_MONTH) + SYNODIC_MONTH) % SYNODIC_MONTH / SYNODIC_MONTH;
+}
+
+// Next date (after `fromDate`) at which the moon phase fraction equals
+// targetPhase (0 = new, 0.5 = full) — exact via the fixed synodic period,
+// no search needed.
+function nextPhaseDate(fromDate, targetPhase) {
+  const jd = toJulianDate(fromDate);
+  let n = Math.ceil((jd - NEW_MOON_REF_JD) / SYNODIC_MONTH - targetPhase);
+  let candidate = NEW_MOON_REF_JD + (n + targetPhase) * SYNODIC_MONTH;
+  if (candidate <= jd + 0.01) candidate += SYNODIC_MONTH;
+  return fromJulianDate(candidate);
+}
+
+// Mean longitude of the Moon's ascending node (regresses ~18.6yr / 360deg).
+function moonNodeLongitude(date) {
+  const D = toJulianDate(date) - 2451545.0;
+  return normDeg(125.1228 - 0.0529538083 * D);
+}
+
+function angleSeparation(a, b) {
+  const d = normDeg(a - b);
+  return Math.min(d, 360 - d);
+}
+
+// Simplified eclipse-season check: an eclipse is possible when the Sun sits
+// close to one of the Moon's two nodes AND the Moon is near new (solar) or
+// full (lunar) at the same time. Real eclipse geometry is more intricate
+// (limits vary with distance), but these are the standard textbook margins
+// (~18.5deg solar, ~12deg lunar) astronomers use for a first-pass check.
+function eclipseTypeAt(date, sunLon) {
+  const node = moonNodeLongitude(date);
+  const dist = Math.min(angleSeparation(sunLon, node), angleSeparation(sunLon, node + 180));
+  const phase = moonPhaseAt(date);
+  if (dist < 18.5 && (phase < 0.06 || phase > 0.94)) return 'solar';
+  if (dist < 12 && phase > 0.44 && phase < 0.56) return 'lunar';
+  return null;
+}
+
+// Steps forward through upcoming new-or-full moons (the only dates an
+// eclipse can fall on) checking the node-distance condition at each,
+// capped at ~5 years out so a long eclipse-free stretch can't hang the
+// search. Pass a specific type ('solar' or 'lunar') to only consider that
+// kind's phase (new for solar, full for lunar); omit it to find whichever
+// comes first.
+function findNextEclipse(fromDate, sunLonAt, wantType) {
+  let d = fromDate;
+  for (let i = 0; i < 130; i++) {
+    let candidate;
+    if (wantType === 'solar') candidate = nextPhaseDate(d, 0);
+    else if (wantType === 'lunar') candidate = nextPhaseDate(d, 0.5);
+    else {
+      const nextNew = nextPhaseDate(d, 0), nextFull = nextPhaseDate(d, 0.5);
+      candidate = nextNew < nextFull ? nextNew : nextFull;
+    }
+    const type = eclipseTypeAt(candidate, sunLonAt(candidate));
+    if (type && (!wantType || type === wantType)) return { date: candidate, type };
+    d = new Date(candidate.getTime() + 86400000);
+  }
+  return null;
+}
 
 function solveKepler(M, e) {
   let E = M;
@@ -231,6 +496,15 @@ function heliocentric(el, T) {
 
 function zodiacSign(lonDeg) { return ZODIAC[Math.floor(normDeg(lonDeg) / 30) % 12]; }
 
+// Sun's geocentric ecliptic longitude at an arbitrary date (Earth's own
+// heliocentric longitude + 180deg) — used by the eclipse search, which
+// needs to evaluate this at many candidate dates, not just currentDate.
+function sunLonAtDate(date) {
+  const T = (toJulianDate(date) - 2451545.0) / 36525;
+  const earthEl = PLANETS.find(p => p.name === 'Earth');
+  return normDeg(heliocentric(earthEl, T).lon + 180);
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // State & DOM
 // ─────────────────────────────────────────────────────────────────────────
@@ -248,10 +522,74 @@ const planetList  = document.getElementById('planet-list');
 const detailPanel = document.getElementById('detail-panel');
 const dial        = document.getElementById('dial');
 const ctx         = dial.getContext('2d');
-const moonCanvas  = document.getElementById('moon-dial');
-const moonCtx     = moonCanvas.getContext('2d');
-const metonicCanvas = document.getElementById('metonic-dial');
-const metonicCtx  = metonicCanvas.getContext('2d');
+const almanacLine = document.getElementById('almanac-line');
+const dialWrap    = document.getElementById('dial-wrap');
+const exportBtn   = document.getElementById('export-btn');
+const exportRangeBtn = document.getElementById('export-range-btn');
+const importBtn   = document.getElementById('import-btn');
+const importInput = document.getElementById('import-input');
+const jsonModal   = document.getElementById('json-modal');
+const jsonModalTitle = document.getElementById('json-modal-title');
+const jsonModalTextarea = document.getElementById('json-modal-textarea');
+const jsonModalCopyBtn = document.getElementById('json-modal-copy');
+const jsonModalDownloadBtn = document.getElementById('json-modal-download');
+const jsonModalCloseBtn = document.getElementById('json-modal-close');
+const themeToggleBtn = document.getElementById('theme-toggle');
+applyTheme();
+themeToggleBtn.addEventListener('click', () => {
+  currentThemeName = currentThemeName === 'brass' ? 'steel' : 'brass';
+  applyTheme();
+  render();
+});
+
+const compactToggleBtn = document.getElementById('compact-toggle');
+let compactView = false;
+compactToggleBtn.addEventListener('click', () => {
+  compactView = !compactView;
+  dialWrap.classList.toggle('compact', compactView);
+  compactToggleBtn.classList.toggle('active', compactView);
+  compactToggleBtn.textContent = compactView ? 'Full View' : 'Compact';
+});
+
+const jumpNewMoonBtn = document.getElementById('jump-new-moon-btn');
+const jumpFullMoonBtn = document.getElementById('jump-full-moon-btn');
+const jumpSolarEclipseBtn = document.getElementById('jump-solar-eclipse-btn');
+const jumpLunarEclipseBtn = document.getElementById('jump-lunar-eclipse-btn');
+const jumpRetrogradeBtn = document.getElementById('jump-retrograde-btn');
+
+jumpNewMoonBtn.addEventListener('click', () => setDate(nextPhaseDate(currentDate, 0)));
+jumpFullMoonBtn.addEventListener('click', () => setDate(nextPhaseDate(currentDate, 0.5)));
+
+jumpSolarEclipseBtn.addEventListener('click', () => {
+  const result = findNextEclipse(currentDate, sunLonAtDate, 'solar');
+  if (result) setDate(result.date);
+  else alert('No solar eclipse found in the next ~5 years from this date.');
+});
+
+jumpLunarEclipseBtn.addEventListener('click', () => {
+  const result = findNextEclipse(currentDate, sunLonAtDate, 'lunar');
+  if (result) setDate(result.date);
+  else alert('No lunar eclipse found in the next ~5 years from this date.');
+});
+
+jumpRetrogradeBtn.addEventListener('click', () => {
+  const planet = PLANETS.find(p => p.name === selected);
+  if (!planet || planet.name === 'Earth') {
+    alert('Select a planet other than Earth first, then try again.');
+    return;
+  }
+  let d = currentDate;
+  const JD0 = toJulianDate(d);
+  let wasRetro = isRetrograde(planet, (JD0 - 2451545.0) / 36525);
+  for (let i = 1; i <= 2000; i++) {
+    d = new Date(currentDate.getTime() + i * 86400000);
+    const T = (toJulianDate(d) - 2451545.0) / 36525;
+    const nowRetro = isRetrograde(planet, T);
+    if (nowRetro && !wasRetro) { setDate(d); return; }
+    wasRetro = nowRetro;
+  }
+  alert(`Couldn't find a ${planet.name} retrograde in the next ~5 years.`);
+});
 
 function setDate(d) {
   currentDate = d;
@@ -280,12 +618,137 @@ function tick() {
   playTimer = setTimeout(tick, 1000 / 30);
 }
 
-setDate(new Date());
+// Keeps the real-time clock ring's second marker sweeping even while the
+// orrery's own simulated date is paused (the play loop above already
+// re-renders often enough to cover the playing case).
+setInterval(() => { if (!playing) render(); }, 1000);
+
+// ─────────────────────────────────────────────────────────────────────────
+// JSON import / export (for external data analysis)
+// ─────────────────────────────────────────────────────────────────────────
+function round(n, d = 6) { const k = 10 ** d; return Math.round(n * k) / k; }
+
+function snapshotData(date) {
+  const JD = toJulianDate(date);
+  const T = (JD - 2451545.0) / 36525;
+  const positions = {};
+  PLANETS.forEach(p => { positions[p.name] = heliocentric(p, T); });
+  const earth = positions['Earth'];
+  const sunGeoLon = normDeg(earth.lon + 180);
+  const moonPhase = moonPhaseAt(date);
+  const metonicYear = ((date.getUTCFullYear() - 2000) % 19 + 19) % 19 + 1;
+
+  const planets = PLANETS.map(p => {
+    const pos = positions[p.name];
+    const isEarth = p.name === 'Earth';
+    const geoLon = isEarth ? sunGeoLon : normDeg(rad2deg(Math.atan2(pos.y - earth.y, pos.x - earth.x)));
+    const distEarth = Math.sqrt((pos.x - earth.x) ** 2 + (pos.y - earth.y) ** 2 + (pos.z - earth.z) ** 2);
+    return {
+      name: p.name,
+      symbol: p.symbol,
+      heliocentric: { xAU: round(pos.x), yAU: round(pos.y), zAU: round(pos.z), distanceAU: round(pos.r), eclipticLongitudeDeg: round(pos.lon) },
+      geocentric: { distanceAU: isEarth ? null : round(distEarth), longitudeDeg: round(geoLon), zodiacSign: zodiacSign(geoLon), retrograde: isEarth ? null : isRetrograde(p, T) },
+      orbit: { semiMajorAxisAU: round(pos.a), eccentricity: round(pos.e, 4), periodYears: round(pos.periodYears, 4), periodDays: Math.round(pos.periodYears * 365.25) },
+    };
+  });
+
+  return {
+    date: date.toISOString(),
+    julianDate: round(JD, 5),
+    sun: { geocentricLongitudeDeg: round(sunGeoLon), zodiacSign: zodiacSign(sunGeoLon) },
+    moon: { phase: round(moonPhase, 4), label: moonPhaseLabel(moonPhase) },
+    metonicCycleYear: metonicYear,
+    planets,
+  };
+}
+
+function showJSONModal(obj, filename) {
+  const text = JSON.stringify(obj, null, 2);
+  jsonModalTitle.textContent = filename;
+  jsonModalTextarea.value = text;
+  jsonModal.style.display = 'flex';
+  jsonModalTextarea.focus();
+  jsonModalTextarea.select();
+
+  jsonModalCopyBtn.onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      jsonModalCopyBtn.textContent = 'Copied!';
+    } catch {
+      jsonModalTextarea.focus();
+      jsonModalTextarea.select();
+      const ok = document.execCommand && document.execCommand('copy');
+      jsonModalCopyBtn.textContent = ok ? 'Copied!' : 'Select all above, then copy';
+    }
+    setTimeout(() => { jsonModalCopyBtn.textContent = 'Copy to Clipboard'; }, 1800);
+  };
+
+  jsonModalDownloadBtn.onclick = () => {
+    const blob = new Blob([text], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  };
+}
+
+jsonModalCloseBtn.addEventListener('click', () => { jsonModal.style.display = 'none'; });
+
+exportBtn.addEventListener('click', () => {
+  showJSONModal(snapshotData(currentDate), `antikythera-${currentDate.toISOString().slice(0, 10)}.json`);
+});
+
+exportRangeBtn.addEventListener('click', () => {
+  const today = currentDate.toISOString().slice(0, 10);
+  const startStr = prompt('Start date (YYYY-MM-DD):', today);
+  if (!startStr) return;
+  const endStr = prompt('End date (YYYY-MM-DD):', today);
+  if (!endStr) return;
+  const stepStr = prompt('Step size, in days:', '1');
+  if (!stepStr) return;
+
+  const start = new Date(startStr + 'T00:00:00Z');
+  const end = new Date(endStr + 'T00:00:00Z');
+  const step = Math.max(1, parseInt(stepStr, 10) || 1);
+  if (isNaN(start) || isNaN(end) || end < start) { alert('Invalid date range.'); return; }
+
+  const points = Math.floor((end - start) / 86400000 / step) + 1;
+  if (points > 5000) {
+    alert(`That range would produce ${points.toLocaleString()} points — narrow the range or increase the step (max 5000).`);
+    return;
+  }
+
+  const series = [];
+  for (let t = start.getTime(); t <= end.getTime(); t += step * 86400000) {
+    series.push(snapshotData(new Date(t)));
+  }
+  showJSONModal(series, `antikythera-series-${startStr}_to_${endStr}.json`);
+});
+
+importBtn.addEventListener('click', () => importInput.click());
+importInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      const first = Array.isArray(parsed) ? parsed[0] : parsed;
+      if (!first || !first.date) throw new Error('missing "date" field');
+      if (Array.isArray(parsed)) alert(`Loaded a time series with ${parsed.length} snapshots. Jumping the dial to its first date; use the exported file itself for analysis in Python/Excel/etc.`);
+      setDate(new Date(first.date));
+    } catch (err) {
+      alert('Could not load this file as an Antikythera snapshot/series export: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  importInput.value = '';
+});
 
 // ─────────────────────────────────────────────────────────────────────────
 // Rendering
 // ─────────────────────────────────────────────────────────────────────────
-const CX = 380, CY = 380;
+const CX = 470, CY = 430;
 const R_MIN = 55, R_MAX = 340;
 const AU_MIN = Math.sqrt(0.31), AU_MAX = Math.sqrt(49.5);
 
@@ -295,10 +758,10 @@ function scaleR(auDist) {
   return R_MIN + t * (R_MAX - R_MIN);
 }
 
-function drawGearRing(c, cx, cy, rIn, rOut, teeth) {
+function drawGearRing(c, cx, cy, rIn, rOut, teeth, th) {
   c.save();
   c.translate(cx, cy);
-  c.fillStyle = '#4a371f';
+  c.fillStyle = th.metalDark;
   for (let i = 0; i < teeth; i++) {
     const a0 = (i / teeth) * 2 * Math.PI;
     const a1 = a0 + (2 * Math.PI / teeth) * 0.55;
@@ -311,6 +774,139 @@ function drawGearRing(c, cx, cy, rIn, rOut, teeth) {
   c.restore();
 }
 
+// Polished brass case ring with fine radial flutes, like a pocket-watch case back.
+function drawFlutedRing(c, cx, cy, rIn, rOut, flutes, th) {
+  c.save();
+  c.translate(cx, cy);
+  const bandGrad = c.createRadialGradient(0, 0, rIn, 0, 0, rOut);
+  bandGrad.addColorStop(0, th.caseGradStops[0]);
+  bandGrad.addColorStop(0.5, th.caseGradStops[1]);
+  bandGrad.addColorStop(1, th.caseGradStops[2]);
+  c.beginPath();
+  c.arc(0, 0, rOut, 0, 2 * Math.PI);
+  c.arc(0, 0, rIn, 0, 2 * Math.PI, true);
+  c.fillStyle = bandGrad;
+  c.fill('evenodd');
+  for (let i = 0; i < flutes; i++) {
+    const a = (i / flutes) * 2 * Math.PI;
+    c.strokeStyle = i % 2 === 0 ? th.fluteDark : th.fluteLight;
+    c.lineWidth = 1;
+    c.beginPath();
+    c.moveTo(Math.cos(a) * rIn, Math.sin(a) * rIn);
+    c.lineTo(Math.cos(a) * rOut, Math.sin(a) * rOut);
+    c.stroke();
+  }
+  c.strokeStyle = th.metalDeepest; c.lineWidth = 2;
+  c.beginPath(); c.arc(0, 0, rOut, 0, 2 * Math.PI); c.stroke();
+  c.beginPath(); c.arc(0, 0, rIn, 0, 2 * Math.PI); c.stroke();
+  c.restore();
+}
+
+// A genuine working clock — hour/minute/second markers confined to the case
+// ring's own band (R_MAX+52..+68), so nothing crosses the planetary face.
+// Clock angle convention (0=12 o'clock, clockwise) is converted to this
+// dial's own (0=3 o'clock, counterclockwise) convention via a = 90 - theta.
+function drawTimeRing(c, cx, cy, th) {
+  const now = new Date();
+  const h = now.getHours() % 12, m = now.getMinutes(), s = now.getSeconds(), ms = now.getMilliseconds();
+  const secFrac = s + ms / 1000;
+  const minFrac = m + secFrac / 60;
+  const hourFrac = h + minFrac / 60;
+
+  const rIn = R_MAX + 52, rOut = R_MAX + 76;
+  c.save();
+  c.translate(cx, cy);
+
+  // a darker backing band makes the whole ring read as its own instrument,
+  // not just texture on the case
+  c.beginPath();
+  c.arc(0, 0, rOut - 1, 0, 2 * Math.PI);
+  c.arc(0, 0, rIn + 1, 0, 2 * Math.PI, true);
+  c.fillStyle = 'rgba(0,0,0,0.16)';
+  c.fill('evenodd');
+
+  // 60 minute ticks, 12 of them bolder as hour marks, with cardinal numerals
+  const ROMAN = { 0: 'XII', 3: 'III', 6: 'VI', 9: 'IX' };
+  for (let i = 0; i < 60; i++) {
+    const theta = i * 6;
+    const a = deg2rad(90 - theta);
+    const isHour = i % 5 === 0;
+    const hourIdx = i / 5;
+    const tickIn = isHour ? rOut - 11 : rOut - 4;
+    c.beginPath();
+    c.moveTo(Math.cos(a) * tickIn, -Math.sin(a) * tickIn);
+    c.lineTo(Math.cos(a) * rOut, -Math.sin(a) * rOut);
+    c.strokeStyle = isHour ? th.metalDeepest : th.metalDark;
+    c.lineWidth = isHour ? 2.6 : 1.1;
+    c.stroke();
+    if (isHour && ROMAN[hourIdx] !== undefined) {
+      c.fillStyle = th.metalDeepest;
+      c.font = '600 9px Cinzel, serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText(ROMAN[hourIdx], Math.cos(a) * (rIn + 9), -Math.sin(a) * (rIn + 9));
+    }
+  }
+
+  // hour marker — a bold filled wedge in Earth blue, unmistakable against
+  // the thinner minute/second markers
+  const EARTH_BLUE = '#5b93d6';
+  const ah = deg2rad(90 - hourFrac * 30);
+  const radial = { x: Math.cos(ah), y: -Math.sin(ah) };
+  const tangent = { x: -Math.sin(ah), y: -Math.cos(ah) };
+  const hBase = rIn + 2, hTip = rOut - 6, hHalfWidth = 4.2;
+  c.beginPath();
+  c.moveTo(radial.x * hBase + tangent.x * hHalfWidth, radial.y * hBase + tangent.y * hHalfWidth);
+  c.lineTo(radial.x * hTip, radial.y * hTip);
+  c.lineTo(radial.x * hBase - tangent.x * hHalfWidth, radial.y * hBase - tangent.y * hHalfWidth);
+  c.closePath();
+  c.fillStyle = EARTH_BLUE;
+  c.fill();
+  c.strokeStyle = th.metalDeepest; c.lineWidth = 0.75;
+  c.stroke();
+
+  // minute marker — Earth blue, slim, reaching further out
+  const am = deg2rad(90 - minFrac * 6);
+  c.beginPath();
+  c.moveTo(Math.cos(am) * (rIn + 1), -Math.sin(am) * (rIn + 1));
+  c.lineTo(Math.cos(am) * (rOut - 2), -Math.sin(am) * (rOut - 2));
+  c.strokeStyle = EARTH_BLUE; c.lineWidth = 1.8; c.lineCap = 'round';
+  c.stroke();
+
+  // second marker — Earth blue too, thinner, sweeps continuously
+  const as = deg2rad(90 - secFrac * 6);
+  c.beginPath();
+  c.moveTo(Math.cos(as) * (rIn + 1), -Math.sin(as) * (rIn + 1));
+  c.lineTo(Math.cos(as) * (rOut - 1), -Math.sin(as) * (rOut - 1));
+  c.strokeStyle = EARTH_BLUE; c.lineWidth = 1.2; c.lineCap = 'round';
+  c.stroke();
+  c.beginPath(); c.arc(Math.cos(as) * (rIn + 1), -Math.sin(as) * (rIn + 1), 1.8, 0, 2 * Math.PI);
+  c.fillStyle = EARTH_BLUE; c.fill();
+
+  c.lineCap = 'butt';
+  c.restore();
+}
+
+// Text set along a circular arc, letter by letter — for engraved dial branding.
+function drawArcText(c, cx, cy, radius, text, centerAngleDeg, spreadDeg, color, font) {
+  c.save();
+  c.translate(cx, cy);
+  c.font = font;
+  c.fillStyle = color;
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  const n = text.length;
+  const step = n > 1 ? deg2rad(spreadDeg) / (n - 1) : 0;
+  const start = deg2rad(centerAngleDeg) + (n > 1 ? deg2rad(spreadDeg) / 2 : 0);
+  for (let i = 0; i < n; i++) {
+    const a = start - i * step;
+    c.save();
+    c.translate(Math.cos(a) * radius, -Math.sin(a) * radius);
+    c.rotate(-a + Math.PI / 2);
+    c.fillText(text[i], 0, 0);
+    c.restore();
+  }
+  c.restore();
+}
+
 function render() {
   const JD = toJulianDate(currentDate);
   const T = (JD - 2451545.0) / 36525;
@@ -318,30 +914,82 @@ function render() {
   const positions = {};
   PLANETS.forEach(p => { positions[p.name] = heliocentric(p, T); });
   const earth = positions['Earth'];
+  const sunGeoLon = normDeg(earth.lon + 180);
+  const sunSignIndex = Math.floor(sunGeoLon / 30) % 12;
+
+  const th = theme();
 
   ctx.clearRect(0, 0, dial.width, dial.height);
-  ctx.fillStyle = '#14100a';
+  ctx.fillStyle = th.caseBg;
   ctx.fillRect(0, 0, dial.width, dial.height);
 
-  // outer gear bezel
-  drawGearRing(ctx, CX, CY, R_MAX + 34, R_MAX + 48, 96);
+  // polished case ring (outermost)
+  drawFlutedRing(ctx, CX, CY, R_MAX + 52, R_MAX + 76, 140, th);
 
-  // zodiac ring
+  // a real, ticking clock — hour/minute/second markers on the case ring's
+  // own band, confined entirely to that band so nothing crosses the
+  // planetary face itself
+  drawTimeRing(ctx, CX, CY, th);
+
+  // movement ring — gear teeth plus engraved dial branding
+  drawGearRing(ctx, CX, CY, R_MAX + 34, R_MAX + 48, 96, th);
+  drawArcText(ctx, CX, CY, R_MAX + 41, 'ANTIKYTHERA', 90, 56, th.brandText, '600 12px Cinzel, serif');
+  drawArcText(ctx, CX, CY, R_MAX + 41, 'CAL. Θ · IX', 270, 44, th.brandText, '600 11px Cinzel, serif');
+
+  // zodiac ring — two alternating tones, current sign glowing
   ctx.save();
   ctx.translate(CX, CY);
-  ctx.strokeStyle = '#4a371f';
-  ctx.beginPath(); ctx.arc(0, 0, R_MAX + 30, 0, 2 * Math.PI); ctx.stroke();
-  ctx.font = '13px serif';
-  ctx.fillStyle = '#c9a227';
+  const ringInner = R_MAX + 6, ringOuter = R_MAX + 30;
+
+  for (let i = 0; i < 12; i++) {
+    const a0 = deg2rad(i * 30), a1 = deg2rad(i * 30 + 30);
+    const isCurrent = i === sunSignIndex;
+    ctx.beginPath();
+    ctx.arc(0, 0, ringOuter, -a0, -a1, true);
+    ctx.arc(0, 0, ringInner, -a1, -a0, false);
+    ctx.closePath();
+    ctx.fillStyle = isCurrent ? th.currentFill : th.zodiacAlt[i % 2];
+    ctx.fill();
+    if (isCurrent) {
+      ctx.save();
+      ctx.shadowColor = th.currentGlow;
+      ctx.shadowBlur = 16;
+      ctx.strokeStyle = th.currentGlow;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  ctx.strokeStyle = th.metalDark;
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(0, 0, ringOuter, 0, 2 * Math.PI); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, 0, ringInner, 0, 2 * Math.PI); ctx.stroke();
+
+  ctx.font = '22px serif';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (let i = 0; i < 12; i++) {
     const mid = deg2rad(i * 30 + 15);
     const lx = Math.cos(mid) * (R_MAX + 18), ly = -Math.sin(mid) * (R_MAX + 18);
+    ctx.fillStyle = i === sunSignIndex ? th.glyphCurrent : th.glyphDefault;
     ctx.fillText(ZODIAC[i][0], lx, ly);
     ctx.beginPath();
     const a = deg2rad(i * 30);
-    ctx.moveTo(Math.cos(a) * (R_MAX + 24), -Math.sin(a) * (R_MAX + 24));
-    ctx.lineTo(Math.cos(a) * (R_MAX + 30), -Math.sin(a) * (R_MAX + 30));
+    ctx.strokeStyle = th.metalDark;
+    ctx.lineWidth = 1;
+    ctx.moveTo(Math.cos(a) * ringInner, -Math.sin(a) * ringInner);
+    ctx.lineTo(Math.cos(a) * ringOuter, -Math.sin(a) * ringOuter);
+    ctx.stroke();
+  }
+  // fine minute-track ticks, watch-chapter-ring style
+  ctx.strokeStyle = th.fineTick;
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 120; i++) {
+    if (i % 10 === 0) continue; // skip where the 12 major ticks already fall
+    const a = deg2rad(i * 3);
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * (ringOuter - 5), -Math.sin(a) * (ringOuter - 5));
+    ctx.lineTo(Math.cos(a) * ringOuter, -Math.sin(a) * ringOuter);
     ctx.stroke();
   }
   ctx.restore();
@@ -353,36 +1001,47 @@ function render() {
     const rr = scaleR(positions[p.name].a);
     ctx.beginPath();
     ctx.arc(0, 0, rr, 0, 2 * Math.PI);
-    ctx.strokeStyle = 'rgba(201,162,39,0.18)';
+    ctx.strokeStyle = th.orbitRing;
     ctx.lineWidth = 1;
     ctx.stroke();
   });
   ctx.restore();
 
-  // sun
+  // sun hub — jeweled cap with regulator-style corner screws
   ctx.save();
   ctx.translate(CX, CY);
+  ctx.beginPath(); ctx.arc(0, 0, 24, 0, 2 * Math.PI);
+  ctx.strokeStyle = th.metalMid; ctx.lineWidth = 1.5; ctx.stroke();
+  [0, 90, 180, 270].forEach(deg => {
+    const a = deg2rad(deg);
+    const sx = Math.cos(a) * 24, sy = Math.sin(a) * 24;
+    ctx.beginPath(); ctx.arc(sx, sy, 2.2, 0, 2 * Math.PI);
+    ctx.fillStyle = th.metalDeepest; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(sx - 1.6, sy); ctx.lineTo(sx + 1.6, sy);
+    ctx.strokeStyle = th.metalMid; ctx.lineWidth = 0.6; ctx.stroke();
+  });
   const sunGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, 22);
   sunGrad.addColorStop(0, '#fff3c9');
-  sunGrad.addColorStop(1, '#d97a3a');
+  sunGrad.addColorStop(1, '#c46a3a');
   ctx.beginPath(); ctx.arc(0, 0, 16, 0, 2 * Math.PI);
   ctx.fillStyle = sunGrad; ctx.fill();
-  ctx.strokeStyle = '#8a6a35'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.strokeStyle = th.metalMid; ctx.lineWidth = 2; ctx.stroke();
+  ctx.beginPath(); ctx.arc(-5, -5, 3, 0, 2 * Math.PI);
+  ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fill();
   ctx.restore();
 
-  // geocentric ecliptic longitude of the sun -> zodiac pointer
-  const sunGeoLon = normDeg(earth.lon + 180);
+  // Sun pointer on the zodiac ring (sunGeoLon computed at top of render)
   ctx.save();
   ctx.translate(CX, CY);
   const sa = deg2rad(sunGeoLon);
-  ctx.strokeStyle = '#d97a3a'; ctx.lineWidth = 2;
+  ctx.strokeStyle = th.accentHand; ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(Math.cos(sa) * (R_MAX + 30), -Math.sin(sa) * (R_MAX + 30));
-  ctx.lineTo(Math.cos(sa) * (R_MAX + 44), -Math.sin(sa) * (R_MAX + 44));
+  ctx.lineTo(Math.cos(sa) * (R_MAX + 60), -Math.sin(sa) * (R_MAX + 60));
   ctx.stroke();
-  ctx.fillStyle = '#d97a3a';
-  ctx.font = 'bold 12px serif'; ctx.textAlign = 'center';
-  ctx.fillText('☉', Math.cos(sa) * (R_MAX + 54), -Math.sin(sa) * (R_MAX + 54) + 4);
+  ctx.fillStyle = th.accentHand;
+  ctx.font = 'bold 13px serif'; ctx.textAlign = 'center';
+  ctx.fillText('☉', Math.cos(sa) * (R_MAX + 76), -Math.sin(sa) * (R_MAX + 76) + 4);
   ctx.restore();
 
   // planets
@@ -398,11 +1057,11 @@ function render() {
     ctx.arc(x, y, p.name === selected ? 11 : 8, 0, 2 * Math.PI);
     ctx.fillStyle = p.color;
     ctx.fill();
-    ctx.strokeStyle = p.name === selected ? '#fff3c9' : '#1d160d';
+    ctx.strokeStyle = p.name === selected ? th.selectedStroke : th.defaultStroke;
     ctx.lineWidth = p.name === selected ? 2.5 : 1.5;
     ctx.stroke();
 
-    ctx.fillStyle = '#e9dcb8';
+    ctx.fillStyle = '#ece2c4';
     ctx.font = '11px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(p.symbol, x, y + 0.5);
 
@@ -410,19 +1069,57 @@ function render() {
   });
   ctx.restore();
 
-  // moon phase subdial
-  const newMoonRef = 2451550.1; // 2000-01-06 18:14 UT
-  const synodic = 29.530588853;
-  const moonPhase = (((JD - newMoonRef) % synodic) + synodic) % synodic / synodic;
-  drawMoonPhase(moonCtx, 45, 40, 26, moonPhase);
-  moonCtx.fillStyle = '#9c8b66'; moonCtx.font = '10px serif'; moonCtx.textAlign = 'center';
-  moonCtx.fillText(moonPhaseLabel(moonPhase), 45, 82);
+  // complications — mounted on a scalloped shield plate that hugs the
+  // dial's own case curve (drawn on this same canvas so the seam is
+  // pixel-exact), each sitting in its own lobe: Metonic (right), Moon
+  // Phase (middle, largest), Day-Date (left), each placed radially out
+  // from the case along its lobe's own angle.
+  drawShieldPlate(ctx, CX, CY, th);
 
-  // metonic cycle subdial (19-year lunisolar cycle, as on the real mechanism)
+  const moonPhase = moonPhaseAt(currentDate);
+  const eclipseType = eclipseTypeAt(currentDate, sunGeoLon);
+
   const metonicYear = ((currentDate.getUTCFullYear() - 2000) % 19 + 19) % 19 + 1;
-  drawMetonicDial(metonicCtx, 45, 40, 30, metonicYear);
+
+  const startOfYear = Date.UTC(currentDate.getUTCFullYear(), 0, 1);
+  const daysInYear = (Date.UTC(currentDate.getUTCFullYear() + 1, 0, 1) - startOfYear) / 86400000;
+  const dayOfYear = Math.floor((Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), currentDate.getUTCDate()) - startOfYear) / 86400000) + 1;
+
+  const MONTH_ABBR = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const dateStr = `${String(currentDate.getUTCDate()).padStart(2, '0')} ${MONTH_ABBR[currentDate.getUTCMonth()]}`;
+
+  function lobeCenter(phiDeg, r) {
+    const placementR = R_MAX + 76 + r + 6 + 10; // case radius + bezel + small gap
+    const p = deg2rad(phiDeg);
+    return { x: CX + Math.cos(p) * placementR, y: CY + Math.sin(p) * placementR };
+  }
+
+  const metonicR = 52, moonR = 76, dayDateR = 58;
+  const metonicPos = lobeCenter(55, metonicR);
+  const moonPos = lobeCenter(90, moonR);
+  const dayDatePos = lobeCenter(125, dayDateR);
+
+  drawMetonicDial(ctx, metonicPos.x, metonicPos.y, metonicR, metonicYear, th);
+  drawMoonPhase(ctx, moonPos.x, moonPos.y, moonR, moonPhase, th);
+  drawDayDateDial(ctx, dayDatePos.x, dayDatePos.y, dayDateR, dayOfYear, dateStr, currentDate.getUTCFullYear(), th);
+
+  if (eclipseType) {
+    ctx.save();
+    ctx.translate(moonPos.x, moonPos.y);
+    ctx.beginPath();
+    ctx.arc(0, 0, moonR + 11, 0, 2 * Math.PI);
+    ctx.strokeStyle = eclipseType === 'solar' ? '#c46a3a' : '#8a5fd1';
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = ctx.strokeStyle;
+    ctx.shadowBlur = 14;
+    ctx.stroke();
+    ctx.restore();
+  }
 
   readout.textContent = currentDate.toUTCString().slice(0, 16) + `  ·  ${zodiacSign(sunGeoLon)}`;
+  const eclipseNote = eclipseType ? ` · ⚠ ${eclipseType === 'solar' ? 'Solar' : 'Lunar'} eclipse likely` : '';
+  almanacLine.textContent = `${moonPhaseLabel(moonPhase)} · Metonic year ${metonicYear}/19 · Day ${dayOfYear}/${daysInYear}${eclipseNote}`;
+  dial.setAttribute('aria-label', `Orrery dial for ${readout.textContent}. ${almanacLine.textContent}.`);
 
   renderList(positions);
   if (selected) renderDetail(selected, positions);
@@ -439,20 +1136,143 @@ function moonPhaseLabel(p) {
   return 'Waning Crescent';
 }
 
-function drawMoonPhase(c, cx, cy, r, phase) {
-  c.clearRect(0, 0, moonCanvas.width, moonCanvas.height);
+// The shield plate: a winged panel whose inner edge is the dial's own case
+// circle (so there is no seam — the wings taper to nothing exactly at the
+// case) sweeping up either side toward the dial's horizontal diameter, then
+// thickening as it curves down to the belly that holds the complications —
+// after the swept shield panel on a classic jump-hour watch.
+const SHIELD_TIP_DEG = 15; // how far up either side the wings climb (0=diameter)
+
+// Explicit (angle, bulge) keypoints, LINEARLY interpolated — straight facets
+// meeting at sharp points, for a faceted/machined look rather than a soft
+// blobby curve. Three scalloped lobes (Metonic / Moon / Day-Date), each a
+// sharp apex, separated by genuine sharp-pointed notches. Angle convention:
+// 90=bottom pole, 15/165=wing tips.
+const SHIELD_KEYS = [
+  [SHIELD_TIP_DEG, 0],
+  [40, 70],
+  [55, 180],   // Metonic lobe apex
+  [72.5, 56],  // notch
+  [90, 250],   // Moon lobe apex (largest)
+  [107.5, 56], // notch
+  [125, 180],  // Day-Date lobe apex
+  [140, 70],
+  [180 - SHIELD_TIP_DEG, 0],
+];
+
+function shieldBulgeAt(phiDeg) {
+  for (let i = 0; i < SHIELD_KEYS.length - 1; i++) {
+    const [p0, v0] = SHIELD_KEYS[i], [p1, v1] = SHIELD_KEYS[i + 1];
+    if (phiDeg >= p0 && phiDeg <= p1) {
+      const t = (phiDeg - p0) / (p1 - p0);
+      return v0 + (v1 - v0) * t;
+    }
+  }
+  return 0;
+}
+
+function shieldOuterRadius(phiDeg) {
+  return R_MAX + 76 + shieldBulgeAt(phiDeg);
+}
+
+function drawShieldPlate(c, cx, cy, th) {
+  const Rcase = R_MAX + 76;
   c.save();
   c.translate(cx, cy);
+
+  c.beginPath();
+  // inner edge: the case circle itself, wing tip to wing tip through the bottom pole
+  c.arc(0, 0, Rcase, deg2rad(180 - SHIELD_TIP_DEG), deg2rad(SHIELD_TIP_DEG), true);
+  // outer edge: swept back across, flattening into a plateau across the belly
+  for (let phi = SHIELD_TIP_DEG; phi <= 180 - SHIELD_TIP_DEG + 0.01; phi += 1.5) {
+    const R = shieldOuterRadius(phi);
+    const p = deg2rad(phi);
+    c.lineTo(Math.cos(p) * R, Math.sin(p) * R);
+  }
+  c.closePath();
+
+  const tipY = Math.sin(deg2rad(SHIELD_TIP_DEG)) * Rcase;
+  const grad = c.createLinearGradient(0, tipY, 0, shieldOuterRadius(90));
+  grad.addColorStop(0, th.caseGradStops[0]);
+  grad.addColorStop(0.55, th.caseGradStops[1]);
+  grad.addColorStop(1, th.caseGradStops[2]);
+  c.fillStyle = grad;
+  c.fill();
+  c.strokeStyle = th.metalDeepest;
+  c.lineWidth = 2;
+  c.stroke();
+
+  // fluted edge — reeded ticks following the outer curve, like a coin's edge
+  for (let phi = SHIELD_TIP_DEG; phi <= 180 - SHIELD_TIP_DEG; phi += 2) {
+    const R = shieldOuterRadius(phi);
+    const p = deg2rad(phi);
+    const x = Math.cos(p) * R, y = Math.sin(p) * R;
+    const p2 = deg2rad(phi + 0.6);
+    const R2 = shieldOuterRadius(phi + 0.6);
+    const tx = Math.cos(p2) * R2 - x, ty = Math.sin(p2) * R2 - y;
+    const tlen = Math.hypot(tx, ty) || 1;
+    let nx = ty / tlen, ny = -tx / tlen;
+    if (nx * x + ny * y < 0) { nx = -nx; ny = -ny; } // keep the normal pointing outward
+    c.beginPath();
+    c.moveTo(x - nx * 9, y - ny * 9);
+    c.lineTo(x + nx * 1.5, y + ny * 1.5);
+    c.strokeStyle = (Math.round(phi / 2)) % 2 === 0 ? th.fluteDark : th.fluteLight;
+    c.lineWidth = 1.3;
+    c.stroke();
+  }
+
+  // a fine inset outline, a hair inside the flutes, for a rimmed/machined look
+  c.beginPath();
+  for (let phi = SHIELD_TIP_DEG + 3; phi <= 180 - SHIELD_TIP_DEG - 3; phi += 2) {
+    const R = shieldOuterRadius(phi) - 11;
+    const p = deg2rad(phi);
+    const x = Math.cos(p) * R, y = Math.sin(p) * R;
+    if (phi === SHIELD_TIP_DEG + 3) c.moveTo(x, y); else c.lineTo(x, y);
+  }
+  c.strokeStyle = th.metalDeepest;
+  c.lineWidth = 1;
+  c.globalAlpha = 0.5;
+  c.stroke();
+  c.globalAlpha = 1;
+
+  // rivets at the two wing tips, echoing the sun hub's screws
+  [SHIELD_TIP_DEG, 180 - SHIELD_TIP_DEG].forEach(phiDeg => {
+    const p = deg2rad(phiDeg);
+    const sx = Math.cos(p) * Rcase, sy = Math.sin(p) * Rcase;
+    c.beginPath(); c.arc(sx, sy, 3, 0, 2 * Math.PI);
+    c.fillStyle = th.metalDeepest; c.fill();
+    c.beginPath(); c.arc(sx - 1, sy - 1, 1, 0, 2 * Math.PI);
+    c.fillStyle = 'rgba(255,255,255,0.5)'; c.fill();
+  });
+
+  c.restore();
+}
+
+function drawComplicationBezel(c, r, th) {
+  c.beginPath(); c.arc(0, 0, r + 6, 0, 2 * Math.PI);
+  c.strokeStyle = th.metalBright; c.lineWidth = 2; c.stroke();
+  c.beginPath(); c.arc(0, 0, r + 2, 0, 2 * Math.PI);
+  c.strokeStyle = th.metalMid; c.lineWidth = 1; c.stroke();
+}
+
+function drawMoonPhase(c, cx, cy, r, phase, th) {
+  c.save();
+  c.translate(cx, cy);
+
   c.beginPath(); c.arc(0, 0, r, 0, 2 * Math.PI);
-  c.fillStyle = '#1e1710'; c.fill();
-  c.strokeStyle = '#5a4326'; c.lineWidth = 1.5; c.stroke();
+  c.fillStyle = '#0e1a24'; c.fill();
+
+  // faint fixed starfield for a night-sky moonphase face (kept dark in both themes, like a "panda dial" register)
+  const stars = [[-29,-22],[18,-31],[29,6],[-16,28],[6,36],[-31,11],[22,23]];
+  c.fillStyle = 'rgba(236,226,196,0.5)';
+  stars.forEach(([sx, sy]) => { c.beginPath(); c.arc(sx, sy, 1, 0, 2 * Math.PI); c.fill(); });
 
   const theta = phase * 2 * Math.PI;
   const rx = r * Math.abs(Math.cos(theta));
   const litRight = phase < 0.5;
 
   c.beginPath();
-  c.fillStyle = '#e9dcb8';
+  c.fillStyle = '#ece2c4';
   if (litRight) {
     c.moveTo(0, -r);
     c.arc(0, 0, r, -Math.PI / 2, Math.PI / 2, false);
@@ -463,27 +1283,89 @@ function drawMoonPhase(c, cx, cy, r, phase) {
     c.ellipse(0, 0, rx, r, 0, -Math.PI / 2, Math.PI / 2, phase > 0.75);
   }
   c.closePath(); c.fill();
+
+  drawComplicationBezel(c, r, th);
   c.restore();
 }
 
-function drawMetonicDial(c, cx, cy, r, year) {
-  c.clearRect(0, 0, metonicCanvas.width, metonicCanvas.height);
+// Power-reserve-style fan gauge for the 19-year Metonic lunisolar cycle.
+function drawMetonicDial(c, cx, cy, r, year, th) {
   c.save();
   c.translate(cx, cy);
-  c.beginPath(); c.arc(0, 0, r, 0, 2 * Math.PI);
-  c.fillStyle = '#1e1710'; c.fill();
-  c.strokeStyle = '#5a4326'; c.lineWidth = 1.5; c.stroke();
-  for (let i = 0; i < 19; i++) {
-    const a = (i / 19) * 2 * Math.PI - Math.PI / 2;
+
+  c.beginPath(); c.arc(0, 0, r, Math.PI, 2 * Math.PI);
+  c.lineTo(-r * 0.55, r * 0.35); c.closePath();
+  c.fillStyle = th.subdialFace; c.fill();
+
+  const angleFor = y => Math.PI + ((y - 1) / 18) * Math.PI;
+
+  c.beginPath(); c.arc(0, 0, r - 6, Math.PI, 2 * Math.PI); c.strokeStyle = th.metalDark; c.lineWidth = 3; c.stroke();
+  c.beginPath(); c.arc(0, 0, r - 6, Math.PI, angleFor(year)); c.strokeStyle = th.metalBright; c.lineWidth = 3; c.stroke();
+
+  [1, 5, 10, 15, 19].forEach(y => {
+    const a = angleFor(y);
     c.beginPath();
-    c.moveTo(Math.cos(a) * (r - 5), Math.sin(a) * (r - 5));
-    c.lineTo(Math.cos(a) * r, Math.sin(a) * r);
-    c.strokeStyle = (i + 1 === year) ? '#d97a3a' : '#4a371f';
-    c.lineWidth = (i + 1 === year) ? 2.5 : 1;
+    c.moveTo(Math.cos(a) * (r - 11), Math.sin(a) * (r - 11));
+    c.lineTo(Math.cos(a) * (r - 2), Math.sin(a) * (r - 2));
+    c.strokeStyle = th.metalMid; c.lineWidth = 1; c.stroke();
+    c.fillStyle = th.subdialDim; c.font = '600 12px Cinzel, serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(y, Math.cos(a) * (r - 20), Math.sin(a) * (r - 20));
+  });
+
+  const na = angleFor(year);
+  c.beginPath();
+  c.moveTo(Math.cos(na + Math.PI) * 4, Math.sin(na + Math.PI) * 4);
+  c.lineTo(Math.cos(na) * (r - 8), Math.sin(na) * (r - 8));
+  c.strokeStyle = th.accentHand; c.lineWidth = 2; c.stroke();
+  c.beginPath(); c.arc(0, 0, 3, 0, 2 * Math.PI); c.fillStyle = '#c9a54a'; c.fill();
+
+  // bezel traces the fan's own silhouette (arc + wedge sides closed), not a
+  // mismatched full circle, so the rim actually frames the shape beneath it
+  [r + 6, r + 2].forEach((rr, i) => {
+    c.beginPath();
+    c.arc(0, 0, rr, Math.PI, 2 * Math.PI);
+    c.lineTo(-rr * 0.55, rr * 0.35);
+    c.closePath();
+    c.strokeStyle = i === 0 ? th.metalBright : th.metalMid;
+    c.lineWidth = i === 0 ? 2 : 1;
     c.stroke();
-  }
-  c.fillStyle = '#e9dcb8'; c.font = 'bold 13px serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.fillText(year, 0, 1);
+  });
+  c.restore();
+}
+
+// A classic "Day-Date" complication: two small windows in one subdial,
+// the day-of-year count on the left and the calendar date on the right.
+function drawDayDateDial(c, cx, cy, r, dayOfYear, dateStr, year, th) {
+  c.save();
+  c.translate(cx, cy);
+
+  c.beginPath(); c.arc(0, 0, r, 0, 2 * Math.PI);
+  c.fillStyle = th.subdialFace; c.fill();
+
+  const h = 33, gap = 6;
+  const dayW = 34, dateW = 60;
+  const totalW = dayW + gap + dateW;
+  const dayX = -totalW / 2 + dayW / 2;
+  const dateX = -totalW / 2 + dayW + gap + dateW / 2;
+  [
+    { x: dayX, w: dayW, text: String(dayOfYear), fontPx: 16 },
+    { x: dateX, w: dateW, text: dateStr, fontPx: 13 },
+  ].forEach(({ x, w, text, fontPx }) => {
+    c.fillStyle = th.dateWindowBg;
+    c.fillRect(x - w / 2, -h / 2 - 5, w, h);
+    c.strokeStyle = th.metalDeepest; c.lineWidth = 1;
+    c.strokeRect(x - w / 2, -h / 2 - 5, w, h);
+    c.fillStyle = th.dateWindowText;
+    c.font = `600 ${fontPx}px Cinzel, serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(text, x, -5 + 0.5);
+  });
+
+  c.fillStyle = th.subdialDim;
+  c.font = '13px "Cormorant Garamond", serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText('DAY' + '  ' + 'DATE', 0, -h / 2 - 5 - 10);
+  c.fillText('A.D. ' + year, 0, r * 0.62);
+
+  drawComplicationBezel(c, r, th);
   c.restore();
 }
 
@@ -507,7 +1389,7 @@ function renderList(positions) {
   planetList.innerHTML = '';
   PLANETS.forEach(p => {
     const pos = positions[p.name];
-    const geoLon = normDeg(rad2deg(Math.atan2(pos.y - earth.y, pos.x - earth.x)));
+    const geoLon = p.name === 'Earth' ? normDeg(earth.lon + 180) : normDeg(rad2deg(Math.atan2(pos.y - earth.y, pos.x - earth.x)));
     const rx = isRetrograde(p, T);
     const row = document.createElement('div');
     row.className = 'planet-row' + (p.name === selected ? ' active' : '');
@@ -527,7 +1409,7 @@ function renderDetail(name, positions) {
   const pos = positions[name];
   const earth = positions['Earth'];
   const distEarth = Math.sqrt((pos.x - earth.x) ** 2 + (pos.y - earth.y) ** 2 + (pos.z - earth.z) ** 2);
-  const geoLon = normDeg(rad2deg(Math.atan2(pos.y - earth.y, pos.x - earth.x)));
+  const geoLon = name === 'Earth' ? normDeg(earth.lon + 180) : normDeg(rad2deg(Math.atan2(pos.y - earth.y, pos.x - earth.x)));
   const JD = toJulianDate(currentDate);
   const T = (JD - 2451545.0) / 36525;
   const rx = isRetrograde(p, T);
@@ -555,7 +1437,14 @@ dial.addEventListener('click', e => {
   if (best) { selected = best; render(); }
 });
 
-render();
+setDate(new Date());
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(render);
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* offline support just won't be available */ });
+  });
+}
 </script>
 </body>
 </html>
