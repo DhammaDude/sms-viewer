@@ -212,7 +212,7 @@
 
 <div id="main">
   <div id="dial-wrap">
-    <canvas id="dial" width="860" height="980"></canvas>
+    <canvas id="dial" width="860" height="1060"></canvas>
   </div>
 </div>
 
@@ -825,11 +825,11 @@ function render() {
   const MONTH_ABBR = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
   const dateStr = `${String(currentDate.getUTCDate()).padStart(2, '0')} ${MONTH_ABBR[currentDate.getUTCMonth()]}`;
 
-  const rowY = CY + 466;
-  drawMoonPhase(ctx, CX - 180, rowY, 40, moonPhase, th);
-  drawDateDial(ctx, CX - 60, rowY, 40, dateStr, currentDate.getUTCFullYear(), th);
-  drawDayOfYearDial(ctx, CX + 60, rowY, 40, dayOfYear, daysInYear, th);
-  drawMetonicDial(ctx, CX + 180, rowY + 8, 42, metonicYear, th);
+  const rowY = CY + 470;
+  drawMoonPhase(ctx, CX - 190, rowY, 48, moonPhase, th);
+  drawDateDial(ctx, CX - 65, rowY, 48, dateStr, currentDate.getUTCFullYear(), th);
+  drawDayOfYearDial(ctx, CX + 65, rowY, 48, dayOfYear, daysInYear, th);
+  drawMetonicDial(ctx, CX + 190, rowY + 8, 50, metonicYear, th);
 
   readout.textContent = currentDate.toUTCString().slice(0, 16) + `  ·  ${zodiacSign(sunGeoLon)}`;
   almanacLine.textContent = `${moonPhaseLabel(moonPhase)} · Metonic year ${metonicYear}/19 · Day ${dayOfYear}/${daysInYear}`;
@@ -849,26 +849,40 @@ function moonPhaseLabel(p) {
   return 'Waning Crescent';
 }
 
-// The shield plate: a panel that hugs the dial's own case curve (its top
-// edge traces the exact same circle as the fluted case ring, so there is
-// no seam) and flares down into a shallow shield to hold the complications
-// row, echoing the swept sub-dial panels on a classic jump-hour watch.
+// The shield plate: a winged panel whose inner edge is the dial's own case
+// circle (so there is no seam — the wings taper to nothing exactly at the
+// case) sweeping up either side toward the dial's horizontal diameter, then
+// thickening as it curves down to the belly that holds the complications —
+// after the swept shield panel on a classic jump-hour watch.
+const SHIELD_TIP_DEG = 15;   // how far up either side the wings climb (0=diameter)
+const SHIELD_BULGE = 190;    // how deep the belly flares out at the bottom
+
+function shieldOuterRadius(phiDeg) {
+  const Rcase = R_MAX + 68;
+  const span = 180 - 2 * SHIELD_TIP_DEG;
+  return Rcase + SHIELD_BULGE * Math.sin(Math.PI * (phiDeg - SHIELD_TIP_DEG) / span);
+}
+
 function drawShieldPlate(c, cx, cy, th) {
   const Rcase = R_MAX + 68;
   c.save();
   c.translate(cx, cy);
 
   c.beginPath();
-  c.arc(0, 0, Rcase, deg2rad(125), deg2rad(55), true); // trace the case circle itself
-  c.bezierCurveTo(240, 390, 242, 445, 238, 485);
-  c.bezierCurveTo(238, 512, 110, 528, 0, 528);
-  c.bezierCurveTo(-110, 528, -238, 512, -238, 485);
-  c.bezierCurveTo(-242, 445, -240, 390, Math.cos(deg2rad(125)) * Rcase, Math.sin(deg2rad(125)) * Rcase);
+  // inner edge: the case circle itself, wing tip to wing tip through the bottom pole
+  c.arc(0, 0, Rcase, deg2rad(180 - SHIELD_TIP_DEG), deg2rad(SHIELD_TIP_DEG), true);
+  // outer edge: swept back across, bulging out toward the belly
+  for (let phi = SHIELD_TIP_DEG; phi <= 180 - SHIELD_TIP_DEG + 0.01; phi += 2) {
+    const R = shieldOuterRadius(phi);
+    const p = deg2rad(phi);
+    c.lineTo(Math.cos(p) * R, Math.sin(p) * R);
+  }
   c.closePath();
 
-  const grad = c.createLinearGradient(0, 300, 0, 528);
+  const tipY = Math.sin(deg2rad(SHIELD_TIP_DEG)) * Rcase;
+  const grad = c.createLinearGradient(0, tipY, 0, Rcase + SHIELD_BULGE);
   grad.addColorStop(0, th.caseGradStops[0]);
-  grad.addColorStop(0.5, th.caseGradStops[1]);
+  grad.addColorStop(0.55, th.caseGradStops[1]);
   grad.addColorStop(1, th.caseGradStops[2]);
   c.fillStyle = grad;
   c.fill();
@@ -876,22 +890,22 @@ function drawShieldPlate(c, cx, cy, th) {
   c.lineWidth = 2;
   c.stroke();
 
-  // a fine inset outline, a hair inside the edge, for a rimmed/machined look
-  c.save();
+  // a fine inset outline, a hair inside the outer edge, for a rimmed/machined look
   c.beginPath();
-  c.arc(0, 0, Rcase - 5, deg2rad(125), deg2rad(55), true);
-  c.bezierCurveTo(235, 389, 237, 440, 233, 478);
-  c.bezierCurveTo(233, 503, 110, 519, 0, 519);
-  c.bezierCurveTo(-110, 519, -233, 503, -233, 478);
-  c.bezierCurveTo(-237, 440, -235, 389, Math.cos(deg2rad(125)) * (Rcase - 5), Math.sin(deg2rad(125)) * (Rcase - 5));
-  c.closePath();
+  for (let phi = SHIELD_TIP_DEG + 3; phi <= 180 - SHIELD_TIP_DEG - 3; phi += 2) {
+    const R = shieldOuterRadius(phi) - 8;
+    const p = deg2rad(phi);
+    const x = Math.cos(p) * R, y = Math.sin(p) * R;
+    if (phi === SHIELD_TIP_DEG + 3) c.moveTo(x, y); else c.lineTo(x, y);
+  }
   c.strokeStyle = th.fluteDark;
   c.lineWidth = 1;
   c.stroke();
-  c.restore();
 
-  // rivets at the two shoulders, echoing the sun hub's screws
-  [[Math.cos(deg2rad(125)) * Rcase, Math.sin(deg2rad(125)) * Rcase], [Math.cos(deg2rad(55)) * Rcase, Math.sin(deg2rad(55)) * Rcase]].forEach(([sx, sy]) => {
+  // rivets at the two wing tips, echoing the sun hub's screws
+  [SHIELD_TIP_DEG, 180 - SHIELD_TIP_DEG].forEach(phiDeg => {
+    const p = deg2rad(phiDeg);
+    const sx = Math.cos(p) * Rcase, sy = Math.sin(p) * Rcase;
     c.beginPath(); c.arc(sx, sy, 3, 0, 2 * Math.PI);
     c.fillStyle = th.metalDeepest; c.fill();
     c.beginPath(); c.arc(sx - 1, sy - 1, 1, 0, 2 * Math.PI);
