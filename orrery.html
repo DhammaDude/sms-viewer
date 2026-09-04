@@ -1321,17 +1321,21 @@ function drawDayDateDial(c, cx, cy, r, dayOfYear, dateStr, year, th) {
   c.beginPath(); c.arc(0, 0, r, 0, 2 * Math.PI);
   c.fillStyle = th.subdialFace; c.fill();
 
-  const w = 46, h = 33, gap = 6;
+  const h = 33, gap = 6;
+  const dayW = 34, dateW = 60;
+  const totalW = dayW + gap + dateW;
+  const dayX = -totalW / 2 + dayW / 2;
+  const dateX = -totalW / 2 + dayW + gap + dateW / 2;
   [
-    { x: -w / 2 - gap / 2, text: String(dayOfYear) },
-    { x: w / 2 + gap / 2, text: dateStr },
-  ].forEach(({ x, text }) => {
+    { x: dayX, w: dayW, text: String(dayOfYear), fontPx: 16 },
+    { x: dateX, w: dateW, text: dateStr, fontPx: 13 },
+  ].forEach(({ x, w, text, fontPx }) => {
     c.fillStyle = th.dateWindowBg;
     c.fillRect(x - w / 2, -h / 2 - 5, w, h);
     c.strokeStyle = th.metalDeepest; c.lineWidth = 1;
     c.strokeRect(x - w / 2, -h / 2 - 5, w, h);
     c.fillStyle = th.dateWindowText;
-    c.font = '600 16px Cinzel, serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.font = `600 ${fontPx}px Cinzel, serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
     c.fillText(text, x, -5 + 0.5);
   });
 
