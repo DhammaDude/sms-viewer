@@ -4,6 +4,17 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Digital Antikythera Mechanism</title>
+<meta name="description" content="An astronomically accurate orrery for all 9 planets, styled as an antique brass pocket watch with lunar, calendar, and eclipse-prediction complications. Runs entirely in your browser." />
+<link rel="canonical" href="https://dhammadude.github.io/sms-viewer/orrery.html" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Digital Antikythera Mechanism" />
+<meta property="og:description" content="An astronomically accurate orrery for all 9 planets, styled as an antique brass pocket watch with lunar, calendar, and eclipse-prediction complications." />
+<meta property="og:url" content="https://dhammadude.github.io/sms-viewer/orrery.html" />
+<meta property="og:image" content="https://dhammadude.github.io/sms-viewer/icons/icon-512.png" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="Digital Antikythera Mechanism" />
+<meta name="twitter:description" content="An astronomically accurate orrery for all 9 planets, styled as an antique brass pocket watch with lunar, calendar, and eclipse-prediction complications." />
+<meta name="twitter:image" content="https://dhammadude.github.io/sms-viewer/icons/icon-512.png" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32" />
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
@@ -242,7 +253,7 @@
 
 <div id="main">
   <div id="dial-wrap">
-    <canvas id="dial" width="940" height="1130"></canvas>
+    <canvas id="dial" width="940" height="1130" role="img" aria-label="Orrery dial showing the positions of the nine planets, moon phase, day-date, and Metonic cycle complications."></canvas>
   </div>
 </div>
 
@@ -1108,6 +1119,7 @@ function render() {
   readout.textContent = currentDate.toUTCString().slice(0, 16) + `  ·  ${zodiacSign(sunGeoLon)}`;
   const eclipseNote = eclipseType ? ` · ⚠ ${eclipseType === 'solar' ? 'Solar' : 'Lunar'} eclipse likely` : '';
   almanacLine.textContent = `${moonPhaseLabel(moonPhase)} · Metonic year ${metonicYear}/19 · Day ${dayOfYear}/${daysInYear}${eclipseNote}`;
+  dial.setAttribute('aria-label', `Orrery dial for ${readout.textContent}. ${almanacLine.textContent}.`);
 
   renderList(positions);
   if (selected) renderDetail(selected, positions);
