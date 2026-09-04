@@ -825,11 +825,11 @@ function render() {
   const MONTH_ABBR = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
   const dateStr = `${String(currentDate.getUTCDate()).padStart(2, '0')} ${MONTH_ABBR[currentDate.getUTCMonth()]}`;
 
-  const rowY = CY + 463, spacing = 100;
-  drawMoonPhase(ctx, CX - 150, rowY, 30, moonPhase, th);
-  drawDateDial(ctx, CX - 50, rowY, 30, dateStr, currentDate.getUTCFullYear(), th);
-  drawDayOfYearDial(ctx, CX + 50, rowY, 30, dayOfYear, daysInYear, th);
-  drawMetonicDial(ctx, CX + 150, rowY + 6, 32, metonicYear, th);
+  const rowY = CY + 466;
+  drawMoonPhase(ctx, CX - 180, rowY, 40, moonPhase, th);
+  drawDateDial(ctx, CX - 60, rowY, 40, dateStr, currentDate.getUTCFullYear(), th);
+  drawDayOfYearDial(ctx, CX + 60, rowY, 40, dayOfYear, daysInYear, th);
+  drawMetonicDial(ctx, CX + 180, rowY + 8, 42, metonicYear, th);
 
   readout.textContent = currentDate.toUTCString().slice(0, 16) + `  ·  ${zodiacSign(sunGeoLon)}`;
   almanacLine.textContent = `${moonPhaseLabel(moonPhase)} · Metonic year ${metonicYear}/19 · Day ${dayOfYear}/${daysInYear}`;
@@ -860,13 +860,13 @@ function drawShieldPlate(c, cx, cy, th) {
 
   c.beginPath();
   c.arc(0, 0, Rcase, deg2rad(125), deg2rad(55), true); // trace the case circle itself
-  c.bezierCurveTo(258, 360, 258, 430, 250, 470);
-  c.bezierCurveTo(250, 505, 150, 522, 0, 522);
-  c.bezierCurveTo(-150, 522, -250, 505, -250, 470);
-  c.bezierCurveTo(-258, 430, -258, 360, Math.cos(deg2rad(125)) * Rcase, Math.sin(deg2rad(125)) * Rcase);
+  c.bezierCurveTo(240, 390, 242, 445, 238, 485);
+  c.bezierCurveTo(238, 512, 110, 528, 0, 528);
+  c.bezierCurveTo(-110, 528, -238, 512, -238, 485);
+  c.bezierCurveTo(-242, 445, -240, 390, Math.cos(deg2rad(125)) * Rcase, Math.sin(deg2rad(125)) * Rcase);
   c.closePath();
 
-  const grad = c.createLinearGradient(0, 300, 0, 522);
+  const grad = c.createLinearGradient(0, 300, 0, 528);
   grad.addColorStop(0, th.caseGradStops[0]);
   grad.addColorStop(0.5, th.caseGradStops[1]);
   grad.addColorStop(1, th.caseGradStops[2]);
@@ -876,11 +876,15 @@ function drawShieldPlate(c, cx, cy, th) {
   c.lineWidth = 2;
   c.stroke();
 
-  // a fine engraved groove just inside the edge, echoing the case's own rings
+  // a fine inset outline, a hair inside the edge, for a rimmed/machined look
   c.save();
-  c.clip();
   c.beginPath();
-  c.arc(0, 0, Rcase - 6, deg2rad(125), deg2rad(55), true);
+  c.arc(0, 0, Rcase - 5, deg2rad(125), deg2rad(55), true);
+  c.bezierCurveTo(235, 389, 237, 440, 233, 478);
+  c.bezierCurveTo(233, 503, 110, 519, 0, 519);
+  c.bezierCurveTo(-110, 519, -233, 503, -233, 478);
+  c.bezierCurveTo(-237, 440, -235, 389, Math.cos(deg2rad(125)) * (Rcase - 5), Math.sin(deg2rad(125)) * (Rcase - 5));
+  c.closePath();
   c.strokeStyle = th.fluteDark;
   c.lineWidth = 1;
   c.stroke();
@@ -912,9 +916,9 @@ function drawMoonPhase(c, cx, cy, r, phase, th) {
   c.fillStyle = '#0e1a24'; c.fill();
 
   // faint fixed starfield for a night-sky moonphase face (kept dark in both themes, like a "panda dial" register)
-  const stars = [[-15,-11],[9,-16],[15,3],[-8,14],[3,18],[-16,5],[11,12]];
+  const stars = [[-20,-15],[12,-21],[20,4],[-11,19],[4,24],[-21,7],[15,16]];
   c.fillStyle = 'rgba(236,226,196,0.5)';
-  stars.forEach(([sx, sy]) => { c.beginPath(); c.arc(sx, sy, 0.7, 0, 2 * Math.PI); c.fill(); });
+  stars.forEach(([sx, sy]) => { c.beginPath(); c.arc(sx, sy, 0.9, 0, 2 * Math.PI); c.fill(); });
 
   const theta = phase * 2 * Math.PI;
   const rx = r * Math.abs(Math.cos(theta));
@@ -957,8 +961,8 @@ function drawMetonicDial(c, cx, cy, r, year, th) {
     c.moveTo(Math.cos(a) * (r - 11), Math.sin(a) * (r - 11));
     c.lineTo(Math.cos(a) * (r - 2), Math.sin(a) * (r - 2));
     c.strokeStyle = th.metalMid; c.lineWidth = 1; c.stroke();
-    c.fillStyle = th.subdialDim; c.font = '8px serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.fillText(y, Math.cos(a) * (r - 19), Math.sin(a) * (r - 19));
+    c.fillStyle = th.subdialDim; c.font = '600 10px Cinzel, serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(y, Math.cos(a) * (r - 20), Math.sin(a) * (r - 20));
   });
 
   const na = angleFor(year);
@@ -1008,18 +1012,18 @@ function drawDateDial(c, cx, cy, r, dateStr, year, th) {
   c.beginPath(); c.arc(0, 0, r, 0, 2 * Math.PI);
   c.fillStyle = th.subdialFace; c.fill();
 
-  const w = 40, h = 20;
+  const w = 54, h = 27;
   c.fillStyle = th.dateWindowBg;
-  c.fillRect(-w / 2, -h / 2 - 3, w, h);
+  c.fillRect(-w / 2, -h / 2 - 4, w, h);
   c.strokeStyle = th.metalDeepest; c.lineWidth = 1;
-  c.strokeRect(-w / 2, -h / 2 - 3, w, h);
+  c.strokeRect(-w / 2, -h / 2 - 4, w, h);
   c.fillStyle = th.dateWindowText;
-  c.font = '600 11px Cinzel, serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.fillText(dateStr, 0, -3 + 0.5);
+  c.font = '600 15px Cinzel, serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText(dateStr, 0, -4 + 0.5);
 
   c.fillStyle = th.subdialDim;
-  c.font = '9px "Cormorant Garamond", serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.fillText('A.D. ' + year, 0, r * 0.55);
+  c.font = '11px "Cormorant Garamond", serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText('A.D. ' + year, 0, r * 0.6);
 
   drawComplicationBezel(c, r, th);
   c.restore();
