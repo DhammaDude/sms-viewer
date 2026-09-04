@@ -644,7 +644,7 @@ function drawTimeRing(c, cx, cy, th) {
   const minFrac = m + secFrac / 60;
   const hourFrac = h + minFrac / 60;
 
-  const rIn = R_MAX + 52, rOut = R_MAX + 68;
+  const rIn = R_MAX + 52, rOut = R_MAX + 76;
   c.save();
   c.translate(cx, cy);
 
@@ -677,8 +677,9 @@ function drawTimeRing(c, cx, cy, th) {
     }
   }
 
-  // hour marker — a bold filled wedge in the accent color, unmistakable
-  // against the thin minute/second lines
+  // hour marker — a bold filled wedge in Earth blue, unmistakable against
+  // the thinner minute/second markers
+  const EARTH_BLUE = '#5b93d6';
   const ah = deg2rad(90 - hourFrac * 30);
   const radial = { x: Math.cos(ah), y: -Math.sin(ah) };
   const tangent = { x: -Math.sin(ah), y: -Math.cos(ah) };
@@ -688,13 +689,12 @@ function drawTimeRing(c, cx, cy, th) {
   c.lineTo(radial.x * hTip, radial.y * hTip);
   c.lineTo(radial.x * hBase - tangent.x * hHalfWidth, radial.y * hBase - tangent.y * hHalfWidth);
   c.closePath();
-  c.fillStyle = th.accentHand;
+  c.fillStyle = EARTH_BLUE;
   c.fill();
   c.strokeStyle = th.metalDeepest; c.lineWidth = 0.75;
   c.stroke();
 
   // minute marker — Earth blue, slim, reaching further out
-  const EARTH_BLUE = '#5b93d6';
   const am = deg2rad(90 - minFrac * 6);
   c.beginPath();
   c.moveTo(Math.cos(am) * (rIn + 1), -Math.sin(am) * (rIn + 1));
@@ -755,7 +755,7 @@ function render() {
   ctx.fillRect(0, 0, dial.width, dial.height);
 
   // polished case ring (outermost)
-  drawFlutedRing(ctx, CX, CY, R_MAX + 52, R_MAX + 68, 140, th);
+  drawFlutedRing(ctx, CX, CY, R_MAX + 52, R_MAX + 76, 140, th);
 
   // a real, ticking clock — hour/minute/second markers on the case ring's
   // own band, confined entirely to that band so nothing crosses the
@@ -921,7 +921,7 @@ function render() {
   const dateStr = `${String(currentDate.getUTCDate()).padStart(2, '0')} ${MONTH_ABBR[currentDate.getUTCMonth()]}`;
 
   function lobeCenter(phiDeg, r) {
-    const placementR = R_MAX + 68 + r + 6 + 10; // case radius + bezel + small gap
+    const placementR = R_MAX + 76 + r + 6 + 10; // case radius + bezel + small gap
     const p = deg2rad(phiDeg);
     return { x: CX + Math.cos(p) * placementR, y: CY + Math.sin(p) * placementR };
   }
@@ -989,11 +989,11 @@ function shieldBulgeAt(phiDeg) {
 }
 
 function shieldOuterRadius(phiDeg) {
-  return R_MAX + 68 + shieldBulgeAt(phiDeg);
+  return R_MAX + 76 + shieldBulgeAt(phiDeg);
 }
 
 function drawShieldPlate(c, cx, cy, th) {
-  const Rcase = R_MAX + 68;
+  const Rcase = R_MAX + 76;
   c.save();
   c.translate(cx, cy);
 
