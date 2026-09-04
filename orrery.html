@@ -205,7 +205,10 @@
         <button class="ctl" id="jump-full-moon-btn">Next Full Moon</button>
       </div>
       <div class="row" style="margin-top:6px">
-        <button class="ctl" id="jump-eclipse-btn">Next Eclipse</button>
+        <button class="ctl" id="jump-solar-eclipse-btn">Next Solar Eclipse</button>
+        <button class="ctl" id="jump-lunar-eclipse-btn">Next Lunar Eclipse</button>
+      </div>
+      <div class="row" style="margin-top:6px">
         <button class="ctl" id="jump-retrograde-btn">Next Retrograde</button>
       </div>
     </div>
@@ -406,17 +409,24 @@ function eclipseTypeAt(date, sunLon) {
   return null;
 }
 
-// Steps forward through upcoming new/full moons (the only dates an eclipse
-// can fall on) checking the node-distance condition at each, capped at
-// ~5 years out so a long eclipse-free stretch can't hang the search.
-function findNextEclipse(fromDate, sunLonAt) {
+// Steps forward through upcoming new-or-full moons (the only dates an
+// eclipse can fall on) checking the node-distance condition at each,
+// capped at ~5 years out so a long eclipse-free stretch can't hang the
+// search. Pass a specific type ('solar' or 'lunar') to only consider that
+// kind's phase (new for solar, full for lunar); omit it to find whichever
+// comes first.
+function findNextEclipse(fromDate, sunLonAt, wantType) {
   let d = fromDate;
   for (let i = 0; i < 130; i++) {
-    const nextNew = nextPhaseDate(d, 0);
-    const nextFull = nextPhaseDate(d, 0.5);
-    const candidate = nextNew < nextFull ? nextNew : nextFull;
+    let candidate;
+    if (wantType === 'solar') candidate = nextPhaseDate(d, 0);
+    else if (wantType === 'lunar') candidate = nextPhaseDate(d, 0.5);
+    else {
+      const nextNew = nextPhaseDate(d, 0), nextFull = nextPhaseDate(d, 0.5);
+      candidate = nextNew < nextFull ? nextNew : nextFull;
+    }
     const type = eclipseTypeAt(candidate, sunLonAt(candidate));
-    if (type) return { date: candidate, type };
+    if (type && (!wantType || type === wantType)) return { date: candidate, type };
     d = new Date(candidate.getTime() + 86400000);
   }
   return null;
@@ -523,16 +533,23 @@ compactToggleBtn.addEventListener('click', () => {
 
 const jumpNewMoonBtn = document.getElementById('jump-new-moon-btn');
 const jumpFullMoonBtn = document.getElementById('jump-full-moon-btn');
-const jumpEclipseBtn = document.getElementById('jump-eclipse-btn');
+const jumpSolarEclipseBtn = document.getElementById('jump-solar-eclipse-btn');
+const jumpLunarEclipseBtn = document.getElementById('jump-lunar-eclipse-btn');
 const jumpRetrogradeBtn = document.getElementById('jump-retrograde-btn');
 
 jumpNewMoonBtn.addEventListener('click', () => setDate(nextPhaseDate(currentDate, 0)));
 jumpFullMoonBtn.addEventListener('click', () => setDate(nextPhaseDate(currentDate, 0.5)));
 
-jumpEclipseBtn.addEventListener('click', () => {
-  const result = findNextEclipse(currentDate, sunLonAtDate);
+jumpSolarEclipseBtn.addEventListener('click', () => {
+  const result = findNextEclipse(currentDate, sunLonAtDate, 'solar');
   if (result) setDate(result.date);
-  else alert('No eclipse found in the next ~5 years from this date.');
+  else alert('No solar eclipse found in the next ~5 years from this date.');
+});
+
+jumpLunarEclipseBtn.addEventListener('click', () => {
+  const result = findNextEclipse(currentDate, sunLonAtDate, 'lunar');
+  if (result) setDate(result.date);
+  else alert('No lunar eclipse found in the next ~5 years from this date.');
 });
 
 jumpRetrogradeBtn.addEventListener('click', () => {
