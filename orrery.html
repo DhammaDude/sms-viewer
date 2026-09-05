@@ -1335,19 +1335,23 @@ function drawMetonicDial(c, cx, cy, r, year, th) {
 }
 
 // Text set along an arc using the shield's own angle convention (phi=90 is
-// straight down, matching cos(phi)/sin(phi) throughout this section) --
-// a phi-space counterpart to drawArcText's astronomical convention.
+// straight down, matching cos(phi)/sin(phi) throughout this section). For
+// any phi between 0 and 180 -- i.e. anywhere on the shield, which sits
+// entirely in the bottom half of the dial -- increasing phi moves LEFT on
+// screen, so characters are placed in decreasing-phi order (first letter at
+// the largest phi) to read left-to-right, and each is rotated by phi-90°
+// rather than phi+90° so it lands right-side up instead of upside down.
 function drawArcTextPhi(c, cx, cy, r, text, centerPhiDeg, spreadDeg, color, font) {
   c.save();
   c.font = font; c.fillStyle = color; c.textAlign = 'center'; c.textBaseline = 'middle';
   const n = text.length;
   const step = n > 1 ? deg2rad(spreadDeg) / (n - 1) : 0;
-  const start = deg2rad(centerPhiDeg) - (n > 1 ? deg2rad(spreadDeg) / 2 : 0);
+  const start = deg2rad(centerPhiDeg) + (n > 1 ? deg2rad(spreadDeg) / 2 : 0);
   for (let i = 0; i < n; i++) {
-    const phi = start + i * step;
+    const phi = start - i * step;
     c.save();
     c.translate(cx + Math.cos(phi) * r, cy + Math.sin(phi) * r);
-    c.rotate(phi + Math.PI / 2);
+    c.rotate(phi - Math.PI / 2);
     c.fillText(text[i], 0, 0);
     c.restore();
   }
@@ -1357,12 +1361,12 @@ function drawArcTextPhi(c, cx, cy, r, text, centerPhiDeg, spreadDeg, color, font
 // A classic "Day-Date" complication -- weekday name and calendar date --
 // curved into a wide, narrow band that follows the main dial's own
 // curvature (both its edges are arcs centered on the dial's own center,
-// CX/CY, exactly like the case ring itself). The angular boundaries below
-// intentionally line up with the shield's own plateau risers at 121/136
-// (see SHIELD_STEPS) so the divider between the two cells lands exactly on
-// a riser the shield already has.
+// CX/CY, exactly like the case ring itself). The weekday/date divider
+// intentionally lines up with the shield's own plateau riser at 121 (see
+// SHIELD_STEPS); the outer limit is pulled in from the shield's next riser
+// at 136 so the band doesn't run right up to that edge.
 function drawDayDateDial(c, CX, CY, weekday, dateStr, year, th) {
-  const AI = 112, AD = 121, AO = 136; // inner limit / weekday-date divider / outer limit
+  const AI = 110, AD = 121, AO = 130; // inner limit / weekday-date divider / outer limit -- pulled AO in from the shield's own 136 riser for clearance
   const rIn = 490, rOut = 530;
 
   function sector(a0Deg, a1Deg, r0, r1) {
