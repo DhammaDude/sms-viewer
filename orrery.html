@@ -310,6 +310,27 @@ const PLANETS = [
 
 const ZODIAC = ['♈ Aries','♉ Taurus','♊ Gemini','♋ Cancer','♌ Leo','♍ Virgo','♎ Libra','♏ Scorpio','♐ Sagittarius','♑ Capricorn','♒ Aquarius','♓ Pisces'];
 
+// The four Galilean moons of Jupiter, modeled the way Galileo himself saw
+// them: circular orbits viewed edge-on (a good approximation, since their
+// orbital planes sit close to Jupiter's equator, itself close to the
+// ecliptic), so each moon's position projects onto a simple side-to-side
+// wobble. Periods and orbital radii (in Jupiter radii) are real, measured
+// values -- what's approximate is phase0, each moon's position at the
+// J2000.0 reference epoch, which is a fixed illustrative alignment rather
+// than a precision-ephemeris fit (the same level of approximation the rest
+// of this app's Keplerian elements use for the planets themselves).
+const GALILEAN_MOONS = [
+  { name: 'Io',       period: 1.769138,  distR: 5.9,  phase0: 0.15, color: '#e8c15a' },
+  { name: 'Europa',   period: 3.551181,  distR: 9.4,  phase0: 0.62, color: '#cbb7e0' },
+  { name: 'Ganymede', period: 7.154553,  distR: 15.0, phase0: 0.08, color: '#d99a6c' },
+  { name: 'Callisto', period: 16.689018, distR: 26.3, phase0: 0.41, color: '#8fb7c9' },
+];
+
+function galileanOffset(moon, JD) {
+  const cycles = (JD - 2451545.0) / moon.period + moon.phase0;
+  return Math.sin(cycles * 2 * Math.PI);
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Case material themes — "brass" (dark lacquer) and "steel" (white/stainless)
 // ─────────────────────────────────────────────────────────────────────────
@@ -916,6 +937,43 @@ function drawArcText(c, cx, cy, radius, text, centerAngleDeg, spreadDeg, color, 
   c.restore();
 }
 
+// The Galilean-moon complication: a short curved strip riding on Jupiter's
+// own orbit ring, anchored to wherever Jupiter currently sits, rather than
+// living on the shield. Uses this dial's own astronomical convention
+// (x=cos(lon)*r, y=-sin(lon)*r) throughout, matching how Jupiter itself is
+// drawn -- so the strip stays locked to Jupiter's real screen position as
+// the simulation date changes, instead of a fixed spot on the case.
+function drawGalileanStrip(c, cx, cy, jupiterPos, JD, th) {
+  const rr = scaleR(jupiterPos.r);
+  const lon = jupiterPos.lon;
+  const span = 26; // degrees of ecliptic longitude the strip covers
+  const l0 = lon - span / 2, l1 = lon + span / 2;
+  const r0 = rr - 9, r1 = rr + 9;
+
+  c.save();
+  c.translate(cx, cy);
+
+  // the band itself, following the same orbit-ring arc Jupiter travels on
+  c.beginPath();
+  c.arc(0, 0, r1, deg2rad(-l1), deg2rad(-l0));
+  c.arc(0, 0, r0, deg2rad(-l0), deg2rad(-l1), true);
+  c.closePath();
+  c.fillStyle = 'rgba(0,0,0,0.3)'; c.fill();
+  c.strokeStyle = th.metalDeepest; c.lineWidth = 1; c.stroke();
+
+  const maxDist = GALILEAN_MOONS[GALILEAN_MOONS.length - 1].distR;
+  GALILEAN_MOONS.forEach(m => {
+    const off = galileanOffset(m, JD) * (m.distR / maxDist) * (span / 2) * 0.85;
+    const a = deg2rad(lon + off);
+    const x = Math.cos(a) * rr, y = -Math.sin(a) * rr;
+    c.beginPath(); c.arc(x, y, 2.4, 0, 2 * Math.PI);
+    c.fillStyle = m.color; c.fill();
+    c.strokeStyle = th.metalDeepest; c.lineWidth = 0.6; c.stroke();
+  });
+
+  c.restore();
+}
+
 function render() {
   const JD = toJulianDate(currentDate);
   const T = (JD - 2451545.0) / 36525;
@@ -1077,6 +1135,8 @@ function render() {
     p._screen = { x: x + CX, y: y + CY };
   });
   ctx.restore();
+
+  drawGalileanStrip(ctx, CX, CY, positions['Jupiter'], JD, th);
 
   // complications — mounted on a scalloped shield plate that hugs the
   // dial's own case curve (drawn on this same canvas so the seam is
