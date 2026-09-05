@@ -206,6 +206,7 @@
     <div class="row" style="justify-content: space-between; align-items: flex-start;">
       <h1>Orrery Chronometer</h1>
       <div class="row" style="gap: 6px;">
+        <button class="ctl" id="sky-view-toggle" title="Show the sky as seen from your location">Sky View</button>
         <button class="ctl" id="fullscreen-toggle" title="Fill the screen with the dial">Fullscreen</button>
         <button class="ctl" id="theme-toggle" title="Switch case material">Steel</button>
       </div>
@@ -351,6 +352,105 @@ function galileanOffset(moon, JD) {
   const cycles = (JD - 2451545.0) / moon.period + moon.phase0;
   return Math.sin(cycles * 2 * Math.PI);
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Geocentric sky view -- Alt/Az of the planets and the brightest stars as
+// actually seen from a given point on Earth, rather than the heliocentric
+// top-down diagram the rest of the dial shows.
+// ─────────────────────────────────────────────────────────────────────────
+
+// The 16 brightest stars: [name, RA (hours, J2000), Dec (degrees, J2000), magnitude]
+const STARS = [
+  ['Sirius', 6.75, -16.72, -1.46],
+  ['Canopus', 6.40, -52.70, -0.74],
+  ['Arcturus', 14.27, 19.18, -0.05],
+  ['Vega', 18.62, 38.78, 0.03],
+  ['Capella', 5.28, 46.00, 0.08],
+  ['Rigel', 5.24, -8.20, 0.13],
+  ['Procyon', 7.65, 5.22, 0.34],
+  ['Betelgeuse', 5.92, 7.41, 0.50],
+  ['Altair', 19.85, 8.87, 0.76],
+  ['Aldebaran', 4.60, 16.51, 0.85],
+  ['Antares', 16.49, -26.43, 0.96],
+  ['Spica', 13.42, -11.16, 0.97],
+  ['Pollux', 7.76, 28.03, 1.14],
+  ['Fomalhaut', 22.96, -29.62, 1.16],
+  ['Deneb', 20.69, 45.28, 1.25],
+  ['Regulus', 10.14, 11.97, 1.35],
+];
+
+const OBLIQUITY_DEG = 23.4393; // Earth's axial tilt, J2000 (treated as constant, same precision tier as the rest of this app)
+
+// Geocentric ecliptic cartesian (planet minus Earth, in the heliocentric
+// frame already computed elsewhere) -> equatorial RA/Dec, by rotating
+// about the x-axis by the obliquity rather than going through an
+// intermediate ecliptic-longitude/latitude step.
+function geocentricEquatorial(planetPos, earthPos) {
+  const gx = planetPos.x - earthPos.x;
+  const gy = planetPos.y - earthPos.y;
+  const gz = planetPos.z - earthPos.z;
+  const eps = deg2rad(OBLIQUITY_DEG);
+  const xEq = gx;
+  const yEq = gy * Math.cos(eps) - gz * Math.sin(eps);
+  const zEq = gy * Math.sin(eps) + gz * Math.cos(eps);
+  const r = Math.sqrt(xEq * xEq + yEq * yEq + zEq * zEq);
+  const raDeg = normDeg(rad2deg(Math.atan2(yEq, xEq)));
+  const decDeg = rad2deg(Math.asin(zEq / r));
+  return { raDeg, decDeg, dist: r };
+}
+
+// Greenwich Mean Sidereal Time (Meeus), converted to Local Sidereal Time
+// with the observer's east-positive longitude.
+function localSiderealTimeDeg(JD, lonDeg) {
+  const T = (JD - 2451545.0) / 36525;
+  let gmst = 280.46061837 + 360.98564736629 * (JD - 2451545.0) + 0.000387933 * T * T - (T * T * T) / 38710000;
+  return normDeg(gmst + lonDeg);
+}
+
+// Equatorial RA/Dec -> local Alt/Az for an observer at latDeg, given the
+// local sidereal time.
+function altAzFromEq(raDeg, decDeg, latDeg, lstDeg) {
+  const H = deg2rad(lstDeg - raDeg);
+  const dec = deg2rad(decDeg), lat = deg2rad(latDeg);
+  const sinAlt = Math.sin(dec) * Math.sin(lat) + Math.cos(dec) * Math.cos(lat) * Math.cos(H);
+  const alt = Math.asin(Math.max(-1, Math.min(1, sinAlt)));
+  let cosAz = (Math.sin(dec) - Math.sin(alt) * Math.sin(lat)) / (Math.cos(alt) * Math.cos(lat));
+  cosAz = Math.max(-1, Math.min(1, cosAz));
+  let az = Math.acos(cosAz);
+  if (Math.sin(H) > 0) az = 2 * Math.PI - az;
+  return { altDeg: rad2deg(alt), azDeg: rad2deg(az) };
+}
+
+function crossVec(a, b) { return { x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x }; }
+function dotVec(a, b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
+function altAzToVec(azDeg, altDeg) {
+  const a = deg2rad(azDeg), h = deg2rad(altDeg);
+  return { x: Math.cos(h) * Math.sin(a), y: Math.cos(h) * Math.cos(a), z: Math.sin(h) };
+}
+
+// Azimuthal-equidistant projection re-centered on an arbitrary look
+// direction (centerAz/centerAlt), rather than always the zenith -- this is
+// what makes panning the sky view around possible. Returns the angular
+// distance from center (theta, radians) and the bearing around it; the
+// caller turns that into screen (x,y) with its own radius-per-radian scale.
+function projectSky(azDeg, altDeg, centerAzDeg, centerAltDeg) {
+  const v = altAzToVec(azDeg, altDeg);
+  const c = altAzToVec(centerAzDeg, centerAltDeg);
+  const worldUp = { x: 0, y: 0, z: 1 };
+  let right = crossVec(worldUp, c);
+  const rightLen = Math.hypot(right.x, right.y, right.z);
+  right = rightLen < 1e-6 ? { x: 1, y: 0, z: 0 } : { x: right.x / rightLen, y: right.y / rightLen, z: right.z / rightLen };
+  const up2 = crossVec(c, right);
+  const cosTheta = Math.max(-1, Math.min(1, dotVec(v, c)));
+  const theta = Math.acos(cosTheta);
+  const tx = v.x - c.x * cosTheta, ty = v.y - c.y * cosTheta, tz = v.z - c.z * cosTheta;
+  const sR = tx * right.x + ty * right.y + tz * right.z;
+  const sU = tx * up2.x + ty * up2.y + tz * up2.z;
+  const bearing = Math.atan2(sR, sU);
+  return { theta, bearing };
+}
+
+function starRadius(mag) { return Math.max(0.9, 3 - mag * 0.6); }
 
 // ─────────────────────────────────────────────────────────────────────────
 // Case material themes — "brass" (dark lacquer) and "steel" (white/stainless)
@@ -554,6 +654,11 @@ let currentDate = new Date();
 let selected = 'Earth';
 let playing = false;
 let playTimer = null;
+
+let skyViewActive = false;
+let observerLoc = null;
+try { observerLoc = JSON.parse(localStorage.getItem('antikythera-location') || 'null'); } catch (e) { observerLoc = null; }
+const skyView = { zoom: 1, centerAz: 0, centerAlt: 90 };
 
 const dateInput   = document.getElementById('date-input');
 const todayBtn    = document.getElementById('today-btn');
@@ -1077,6 +1182,85 @@ function drawGalileanStrip(c, cx, cy, jupiterPos, JD, th) {
   c.restore();
 }
 
+// Replaces the heliocentric orbit-rings/sun/planets content with what's
+// actually visible from the observer's location right now: the brightest
+// stars and the planets, converted through geocentric-equatorial and then
+// local Alt/Az. Confined to radius R_MAX so it drops into the same "face"
+// the orbit diagram normally occupies -- the case ring, zodiac ring, time
+// ring and shield complications around it are unaffected either way.
+function drawSkyView(c, cx, cy, JD, positions, earth, th) {
+  c.save();
+  c.translate(cx, cy);
+
+  c.beginPath();
+  c.arc(0, 0, R_MAX, 0, 2 * Math.PI);
+  c.clip();
+
+  const sky = c.createRadialGradient(0, -R_MAX * 0.2, R_MAX * 0.05, 0, 0, R_MAX);
+  sky.addColorStop(0, '#16233a');
+  sky.addColorStop(1, '#050810');
+  c.beginPath(); c.arc(0, 0, R_MAX, 0, 2 * Math.PI); c.fillStyle = sky; c.fill();
+
+  const lstDeg = localSiderealTimeDeg(JD, observerLoc.lon);
+  const pxPerRad = R_MAX / (Math.PI / 2) * skyView.zoom;
+
+  function toScreen(azDeg, altDeg) {
+    const { theta, bearing } = projectSky(azDeg, altDeg, skyView.centerAz, skyView.centerAlt);
+    const r = theta * pxPerRad;
+    return { x: r * Math.sin(bearing), y: -r * Math.cos(bearing), r };
+  }
+
+  // stars
+  STARS.forEach(([name, raH, decDeg, mag]) => {
+    const { altDeg, azDeg } = altAzFromEq(raH * 15, decDeg, observerLoc.lat, lstDeg);
+    if (altDeg < -2) return;
+    const p = toScreen(azDeg, altDeg);
+    if (p.r > R_MAX) return;
+    c.beginPath(); c.arc(p.x, p.y, starRadius(mag), 0, 2 * Math.PI);
+    c.fillStyle = '#f4efe0'; c.fill();
+    if (mag < 0.5) {
+      c.fillStyle = 'rgba(244,239,224,0.75)'; c.font = '9px "Cormorant Garamond", serif';
+      c.textAlign = 'left'; c.textBaseline = 'middle';
+      c.fillText(name, p.x + 5, p.y);
+    }
+  });
+
+  // planets (skip Earth -- that's the observer)
+  PLANETS.forEach(pl => {
+    if (pl.name === 'Earth') return;
+    const eq = geocentricEquatorial(positions[pl.name], earth);
+    const { altDeg, azDeg } = altAzFromEq(eq.raDeg, eq.decDeg, observerLoc.lat, lstDeg);
+    if (altDeg < -2) return;
+    const p = toScreen(azDeg, altDeg);
+    if (p.r > R_MAX) return;
+    c.beginPath(); c.arc(p.x, p.y, pl.name === selected ? 9 : 7, 0, 2 * Math.PI);
+    c.fillStyle = pl.color; c.fill();
+    c.strokeStyle = pl.name === selected ? th.selectedStroke : th.defaultStroke;
+    c.lineWidth = pl.name === selected ? 2.2 : 1.3;
+    c.stroke();
+    c.fillStyle = '#ece2c4'; c.font = '10px serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(pl.symbol, p.x, p.y + 0.5);
+  });
+
+  // compass points, projected the same way so they stay correct while panned
+  [['N', 0], ['E', 90], ['S', 180], ['W', 270]].forEach(([label, az]) => {
+    const p = toScreen(az, 0);
+    if (p.r > R_MAX) return;
+    c.fillStyle = 'rgba(201,165,74,0.8)'; c.font = '600 11px Cinzel, serif';
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(label, p.x, p.y);
+  });
+
+  // zenith marker, only meaningful near it
+  const zen = toScreen(skyView.centerAz, 90);
+  if (Math.hypot(zen.x, zen.y) < R_MAX) {
+    c.beginPath(); c.arc(zen.x, zen.y, 2, 0, 2 * Math.PI);
+    c.strokeStyle = 'rgba(201,165,74,0.5)'; c.lineWidth = 1; c.stroke();
+  }
+
+  c.restore();
+}
+
 function render() {
   const JD = toJulianDate(currentDate);
   const T = (JD - 2451545.0) / 36525;
@@ -1183,6 +1367,9 @@ function render() {
 
   ctx.restore();
 
+  if (skyViewActive) {
+    drawSkyView(ctx, CX, CY, JD, positions, earth, th);
+  } else {
   // orbit rings (static, based on mean semi-major axis)
   ctx.save();
   ctx.translate(CX, CY);
@@ -1262,6 +1449,7 @@ function render() {
   ctx.restore();
 
   drawGalileanStrip(ctx, CX, CY, positions['Jupiter'], JD, th);
+  }
 
   // complications — mounted on a scalloped shield plate that hugs the
   // dial's own case curve (drawn on this same canvas so the seam is
@@ -1314,7 +1502,9 @@ function render() {
   const monthTitle = MONTH_ABBR[currentDate.getMonth()][0] + MONTH_ABBR[currentDate.getMonth()].slice(1).toLowerCase();
   readout.textContent = `${weekdayTitle}, ${String(currentDate.getDate()).padStart(2, '0')} ${monthTitle} ${currentDate.getFullYear()}` + `  ·  ${zodiacSign(sunGeoLon)}`;
   const eclipseNote = eclipseType ? ` · ⚠ ${eclipseType === 'solar' ? 'Solar' : 'Lunar'} eclipse likely` : '';
-  almanacLine.textContent = `${moonPhaseLabel(moonPhase)} · Metonic year ${metonicYear}/19 · Day ${dayOfYear}/${daysInYear}${eclipseNote}`;
+  almanacLine.textContent = skyViewActive && observerLoc
+    ? `Sky View · ${observerLoc.lat.toFixed(1)}°, ${observerLoc.lon.toFixed(1)}° · drag to look around, scroll to zoom, double-click to reset`
+    : `${moonPhaseLabel(moonPhase)} · Metonic year ${metonicYear}/19 · Day ${dayOfYear}/${daysInYear}${eclipseNote}`;
   dial.setAttribute('aria-label', `Orrery dial for ${readout.textContent}. ${almanacLine.textContent}.`);
 
   renderList(positions);
@@ -1717,6 +1907,7 @@ function renderDetail(name, positions) {
 }
 
 dial.addEventListener('click', e => {
+  if (skyViewActive) return; // dragging the sky view stands in for planet-picking here
   const rect = dial.getBoundingClientRect();
   const mx = (e.clientX - rect.left) * (LOGICAL_W / rect.width);
   const my = (e.clientY - rect.top) * (LOGICAL_H / rect.height);
@@ -1728,6 +1919,90 @@ dial.addEventListener('click', e => {
   });
   if (best) { selected = best; render(); }
 });
+
+// ─────────────────────────────────────────────────────────────────────────
+// Sky View: location, and drag-to-pan / wheel-to-zoom on the dome
+// ─────────────────────────────────────────────────────────────────────────
+function ensureLocation(onReady) {
+  if (observerLoc) { onReady(); return; }
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        observerLoc = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+        localStorage.setItem('antikythera-location', JSON.stringify(observerLoc));
+        onReady();
+      },
+      () => { promptForLocation(onReady); },
+      { timeout: 8000 }
+    );
+  } else {
+    promptForLocation(onReady);
+  }
+}
+
+function promptForLocation(onReady) {
+  const input = prompt('Could not use your device location. Enter your latitude and longitude as "lat, lon" (e.g. 40.7, -74.0):', '0, 0');
+  if (input === null) return;
+  const parts = input.split(',').map(s => parseFloat(s.trim()));
+  if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+    observerLoc = { lat: parts[0], lon: parts[1] };
+    localStorage.setItem('antikythera-location', JSON.stringify(observerLoc));
+    onReady();
+  } else {
+    alert('Could not read that as "lat, lon". Sky View needs a location to know what is above your horizon.');
+  }
+}
+
+const skyViewToggleBtn = document.getElementById('sky-view-toggle');
+skyViewToggleBtn.addEventListener('click', () => {
+  if (skyViewActive) {
+    skyViewActive = false;
+    skyViewToggleBtn.classList.remove('active');
+    skyViewToggleBtn.textContent = 'Sky View';
+    render();
+  } else {
+    ensureLocation(() => {
+      if (!observerLoc) return;
+      skyViewActive = true;
+      skyViewToggleBtn.classList.add('active');
+      skyViewToggleBtn.textContent = 'Orrery View';
+      render();
+    });
+  }
+});
+
+let skyDrag = null;
+dial.addEventListener('pointerdown', e => {
+  if (!skyViewActive) return;
+  skyDrag = { x: e.clientX, y: e.clientY, az: skyView.centerAz, alt: skyView.centerAlt };
+  dial.setPointerCapture(e.pointerId);
+});
+dial.addEventListener('pointermove', e => {
+  if (!skyViewActive || !skyDrag) return;
+  const rect = dial.getBoundingClientRect();
+  const pxPerLogical = rect.width / LOGICAL_W;
+  const dx = (e.clientX - skyDrag.x) / pxPerLogical;
+  const dy = (e.clientY - skyDrag.y) / pxPerLogical;
+  const degPerLogicalPx = (90 / R_MAX) / skyView.zoom;
+  skyView.centerAz = normDeg(skyDrag.az - dx * degPerLogicalPx);
+  skyView.centerAlt = Math.max(-15, Math.min(90, skyDrag.alt + dy * degPerLogicalPx));
+  render();
+});
+['pointerup', 'pointercancel', 'pointerleave'].forEach(evt => {
+  dial.addEventListener(evt, () => { skyDrag = null; });
+});
+dial.addEventListener('dblclick', e => {
+  if (!skyViewActive) return;
+  skyView.zoom = 1; skyView.centerAz = 0; skyView.centerAlt = 90;
+  render();
+});
+dial.addEventListener('wheel', e => {
+  if (!skyViewActive) return;
+  e.preventDefault();
+  const factor = Math.exp(-e.deltaY * 0.001);
+  skyView.zoom = Math.max(1, Math.min(8, skyView.zoom * factor));
+  render();
+}, { passive: false });
 
 setDate(new Date());
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(render);
