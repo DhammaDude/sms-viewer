@@ -1330,13 +1330,13 @@ function drawMetonicDial(c, CX, CY, year, th) {
   // ticks/progress map onto an inset range so year 1/19 don't land right on
   // the band's own edges (and corner rivets)
   const A0 = MO + 3, A1 = MI - 3;
-  const angleFor = y => A0 + ((y - 1) / 18) * (A1 - A0);
+  const angleFor = y => A1 - ((y - 1) / 18) * (A1 - A0); // year 1 at A1, running down to year 19 at A0
 
   // progress track: a dim full track, with the elapsed portion lit bright
   const trackR = (rIn + rOut) / 2;
   c.beginPath(); c.arc(CX, CY, trackR, deg2rad(A0), deg2rad(A1));
   c.strokeStyle = th.metalDark; c.lineWidth = 5; c.stroke();
-  c.beginPath(); c.arc(CX, CY, trackR, deg2rad(A0), deg2rad(angleFor(year)));
+  c.beginPath(); c.arc(CX, CY, trackR, deg2rad(angleFor(year)), deg2rad(A1));
   c.strokeStyle = th.metalBright; c.lineWidth = 5; c.stroke();
 
   // tick marks + numerals at 1, 5, 10, 15, 19
@@ -1360,7 +1360,6 @@ function drawMetonicDial(c, CX, CY, year, th) {
   c.strokeStyle = th.metalDeepest; c.lineWidth = 1; c.stroke();
 
   drawArcTextPhi(c, CX, CY, rOut + 11, 'METONIC CYCLE', (MO + MI) / 2, MI - MO, th.subdialDim, '11px "Cormorant Garamond", serif');
-  drawArcTextPhi(c, CX, CY, rIn - 28, 'YEAR ' + year + '/19', (MO + MI) / 2, (MI - MO) * 0.6, th.subdialDim, '10px "Cormorant Garamond", serif');
 
   // small rivets at the band's outer corners, matching the Day-Date band
   [MO, MI].forEach(phiDeg => {
