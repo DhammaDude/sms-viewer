@@ -591,15 +591,24 @@ jumpRetrogradeBtn.addEventListener('click', () => {
   alert(`Couldn't find a ${planet.name} retrograde in the next ~5 years.`);
 });
 
+// Calendar fields (day-of-year, the date picker, weekday/date readouts) use
+// the viewer's own local time, not UTC -- otherwise anyone west of Greenwich
+// sees "today" flip over to tomorrow's date hours before local midnight.
+// The astronomical math is untouched by this: toJulianDate() works from the
+// absolute instant (getTime()), so planet positions stay correct regardless.
+function toLocalDateInputValue(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function setDate(d) {
   currentDate = d;
-  dateInput.value = d.toISOString().slice(0, 10);
+  dateInput.value = toLocalDateInputValue(d);
   render();
 }
 
 dateInput.addEventListener('change', () => {
   const [y, m, day] = dateInput.value.split('-').map(Number);
-  setDate(new Date(Date.UTC(y, m - 1, day, currentDate.getUTCHours())));
+  setDate(new Date(y, m - 1, day, currentDate.getHours(), currentDate.getMinutes(), currentDate.getSeconds()));
 });
 todayBtn.addEventListener('click', () => setDate(new Date()));
 
@@ -613,7 +622,7 @@ playBtn.addEventListener('click', () => {
 function tick() {
   if (!playing) return;
   currentDate = new Date(currentDate.getTime() + Number(speedSelect.value) / 30);
-  dateInput.value = currentDate.toISOString().slice(0, 10);
+  dateInput.value = toLocalDateInputValue(currentDate);
   render();
   playTimer = setTimeout(tick, 1000 / 30);
 }
@@ -695,11 +704,11 @@ function showJSONModal(obj, filename) {
 jsonModalCloseBtn.addEventListener('click', () => { jsonModal.style.display = 'none'; });
 
 exportBtn.addEventListener('click', () => {
-  showJSONModal(snapshotData(currentDate), `antikythera-${currentDate.toISOString().slice(0, 10)}.json`);
+  showJSONModal(snapshotData(currentDate), `antikythera-${toLocalDateInputValue(currentDate)}.json`);
 });
 
 exportRangeBtn.addEventListener('click', () => {
-  const today = currentDate.toISOString().slice(0, 10);
+  const today = toLocalDateInputValue(currentDate);
   const startStr = prompt('Start date (YYYY-MM-DD):', today);
   if (!startStr) return;
   const endStr = prompt('End date (YYYY-MM-DD):', today);
@@ -1079,16 +1088,16 @@ function render() {
   const moonPhase = moonPhaseAt(currentDate);
   const eclipseType = eclipseTypeAt(currentDate, sunGeoLon);
 
-  const metonicYear = ((currentDate.getUTCFullYear() - 2000) % 19 + 19) % 19 + 1;
+  const metonicYear = ((currentDate.getFullYear() - 2000) % 19 + 19) % 19 + 1;
 
-  const startOfYear = Date.UTC(currentDate.getUTCFullYear(), 0, 1);
-  const daysInYear = (Date.UTC(currentDate.getUTCFullYear() + 1, 0, 1) - startOfYear) / 86400000;
-  const dayOfYear = Math.floor((Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), currentDate.getUTCDate()) - startOfYear) / 86400000) + 1;
+  const startOfYear = new Date(currentDate.getFullYear(), 0, 1).getTime();
+  const daysInYear = (new Date(currentDate.getFullYear() + 1, 0, 1).getTime() - startOfYear) / 86400000;
+  const dayOfYear = Math.floor((new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate()).getTime() - startOfYear) / 86400000) + 1;
 
   const MONTH_ABBR = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-  const dateStr = `${String(currentDate.getUTCDate()).padStart(2, '0')} ${MONTH_ABBR[currentDate.getUTCMonth()]}`;
+  const dateStr = `${String(currentDate.getDate()).padStart(2, '0')} ${MONTH_ABBR[currentDate.getMonth()]}`;
   const WEEKDAY_ABBR = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
-  const weekday = WEEKDAY_ABBR[currentDate.getUTCDay()];
+  const weekday = WEEKDAY_ABBR[currentDate.getDay()];
 
   function lobeCenter(phiDeg, r) {
     const placementR = R_MAX + 76 + r + 6 + 10; // case radius + bezel + small gap
@@ -1101,7 +1110,7 @@ function render() {
 
   drawMetonicDial(ctx, CX, CY, metonicYear, th);
   drawMoonPhase(ctx, moonPos.x, moonPos.y, moonR, moonPhase, th);
-  drawDayDateDial(ctx, CX, CY, weekday, dateStr, currentDate.getUTCFullYear(), th);
+  drawDayDateDial(ctx, CX, CY, weekday, dateStr, currentDate.getFullYear(), th);
 
   if (eclipseType) {
     ctx.save();
@@ -1116,7 +1125,9 @@ function render() {
     ctx.restore();
   }
 
-  readout.textContent = currentDate.toUTCString().slice(0, 16) + `  ·  ${zodiacSign(sunGeoLon)}`;
+  const weekdayTitle = weekday[0] + weekday.slice(1).toLowerCase();
+  const monthTitle = MONTH_ABBR[currentDate.getMonth()][0] + MONTH_ABBR[currentDate.getMonth()].slice(1).toLowerCase();
+  readout.textContent = `${weekdayTitle}, ${String(currentDate.getDate()).padStart(2, '0')} ${monthTitle} ${currentDate.getFullYear()}` + `  ·  ${zodiacSign(sunGeoLon)}`;
   const eclipseNote = eclipseType ? ` · ⚠ ${eclipseType === 'solar' ? 'Solar' : 'Lunar'} eclipse likely` : '';
   almanacLine.textContent = `${moonPhaseLabel(moonPhase)} · Metonic year ${metonicYear}/19 · Day ${dayOfYear}/${daysInYear}${eclipseNote}`;
   dial.setAttribute('aria-label', `Orrery dial for ${readout.textContent}. ${almanacLine.textContent}.`);
