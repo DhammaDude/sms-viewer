@@ -1087,6 +1087,8 @@ function render() {
 
   const MONTH_ABBR = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
   const dateStr = `${String(currentDate.getUTCDate()).padStart(2, '0')} ${MONTH_ABBR[currentDate.getUTCMonth()]}`;
+  const WEEKDAY_ABBR = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  const weekday = WEEKDAY_ABBR[currentDate.getUTCDay()];
 
   function lobeCenter(phiDeg, r) {
     const placementR = R_MAX + 76 + r + 6 + 10; // case radius + bezel + small gap
@@ -1094,14 +1096,13 @@ function render() {
     return { x: CX + Math.cos(p) * placementR, y: CY + Math.sin(p) * placementR };
   }
 
-  const metonicR = 52, moonR = 76, dayDateR = 58;
+  const metonicR = 52, moonR = 76;
   const metonicPos = lobeCenter(55, metonicR);
   const moonPos = lobeCenter(90, moonR);
-  const dayDatePos = lobeCenter(125, dayDateR);
 
   drawMetonicDial(ctx, metonicPos.x, metonicPos.y, metonicR, metonicYear, th);
   drawMoonPhase(ctx, moonPos.x, moonPos.y, moonR, moonPhase, th);
-  drawDayDateDial(ctx, dayDatePos.x, dayDatePos.y, 125, dayOfYear, dateStr, currentDate.getUTCFullYear(), th);
+  drawDayDateDial(ctx, CX, CY, weekday, dateStr, currentDate.getUTCFullYear(), th);
 
   if (eclipseType) {
     ctx.save();
@@ -1333,75 +1334,80 @@ function drawMetonicDial(c, cx, cy, r, year, th) {
   c.restore();
 }
 
-// A classic "Day-Date" complication: two small windows in one subdial,
-// the day-of-year count on the left and the calendar date on the right.
-function drawDayDateDial(c, cx, cy, phiDeg, dayOfYear, dateStr, year, th) {
+// Text set along an arc using the shield's own angle convention (phi=90 is
+// straight down, matching cos(phi)/sin(phi) throughout this section) --
+// a phi-space counterpart to drawArcText's astronomical convention.
+function drawArcTextPhi(c, cx, cy, r, text, centerPhiDeg, spreadDeg, color, font) {
   c.save();
-  c.translate(cx, cy);
-  // No separate subdial disc or circular bezel here -- rotate to the plate's
-  // own local "outward" direction and engrave the windows straight into its
-  // surface, so the shield's own metal (already painted behind this) shows
-  // through everywhere but the recessed panel itself.
-  c.rotate(deg2rad(phiDeg - 90));
+  c.font = font; c.fillStyle = color; c.textAlign = 'center'; c.textBaseline = 'middle';
+  const n = text.length;
+  const step = n > 1 ? deg2rad(spreadDeg) / (n - 1) : 0;
+  const start = deg2rad(centerPhiDeg) - (n > 1 ? deg2rad(spreadDeg) / 2 : 0);
+  for (let i = 0; i < n; i++) {
+    const phi = start + i * step;
+    c.save();
+    c.translate(cx + Math.cos(phi) * r, cy + Math.sin(phi) * r);
+    c.rotate(phi + Math.PI / 2);
+    c.fillText(text[i], 0, 0);
+    c.restore();
+  }
+  c.restore();
+}
 
-  const h = 34, gap = 7;
-  const dayW = 36, dateW = 62;
-  const totalW = dayW + gap + dateW;
-  const dayX = -totalW / 2 + dayW / 2;
-  const dateX = -totalW / 2 + dayW + gap + dateW / 2;
+// A classic "Day-Date" complication -- weekday name and calendar date --
+// curved into a wide, narrow band that follows the main dial's own
+// curvature (both its edges are arcs centered on the dial's own center,
+// CX/CY, exactly like the case ring itself). The angular boundaries below
+// intentionally line up with the shield's own plateau risers at 121/136
+// (see SHIELD_STEPS) so the divider between the two cells lands exactly on
+// a riser the shield already has.
+function drawDayDateDial(c, CX, CY, weekday, dateStr, year, th) {
+  const AI = 112, AD = 121, AO = 136; // inner limit / weekday-date divider / outer limit
+  const rIn = 490, rOut = 530;
 
-  const padX = 12, padY = 8, labelH = 16;
-  const panelW = totalW + padX * 2;
-  const panelTop = -h / 2 - 5 - padY - labelH;
-  const panelBottom = h / 2 - 5 + padY;
-  const panelH = panelBottom - panelTop;
+  function sector(a0Deg, a1Deg, r0, r1) {
+    c.beginPath();
+    c.arc(CX, CY, r1, deg2rad(a0Deg), deg2rad(a1Deg));
+    c.arc(CX, CY, r0, deg2rad(a1Deg), deg2rad(a0Deg), true);
+    c.closePath();
+  }
 
-  // a shallow recess milled into the plate, not a raised bezel
+  // the recessed band itself, milled along the plate's own curve
+  sector(AI, AO, rIn, rOut);
+  c.fillStyle = 'rgba(0,0,0,0.2)'; c.fill();
+  c.strokeStyle = th.metalDeepest; c.lineWidth = 1.5; c.stroke();
+  sector(AI + 0.5, AO - 0.5, rIn + 2, rOut - 2);
+  c.strokeStyle = 'rgba(255,255,255,0.15)'; c.lineWidth = 1; c.stroke();
+
+  // the two cells
+  sector(AI + 1, AD - 0.5, rIn + 4, rOut - 4);
+  c.fillStyle = th.dateWindowBg; c.fill();
+  sector(AD + 0.5, AO - 1, rIn + 4, rOut - 4);
+  c.fillStyle = th.dateWindowBg; c.fill();
+
+  // divider between the cells, on the shield's own riser angle
+  const dp = deg2rad(AD);
   c.beginPath();
-  c.rect(-panelW / 2, panelTop, panelW, panelH);
-  c.fillStyle = 'rgba(0,0,0,0.2)';
-  c.fill();
-  c.strokeStyle = th.metalDeepest; c.lineWidth = 1.5;
-  c.stroke();
-  c.strokeStyle = 'rgba(255,255,255,0.15)'; c.lineWidth = 1;
-  c.beginPath();
-  c.rect(-panelW / 2 + 1.5, panelTop + 1.5, panelW - 3, panelH - 3);
-  c.stroke();
+  c.moveTo(CX + Math.cos(dp) * (rIn + 3), CY + Math.sin(dp) * (rIn + 3));
+  c.lineTo(CX + Math.cos(dp) * (rOut - 3), CY + Math.sin(dp) * (rOut - 3));
+  c.strokeStyle = th.metalDeepest; c.lineWidth = 1; c.stroke();
 
-  c.fillStyle = th.subdialDim;
-  c.font = '12px "Cormorant Garamond", serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.fillText('DAY' + '  ' + 'DATE', 0, panelTop + 11);
+  const midR = (rIn + rOut) / 2;
+  drawArcTextPhi(c, CX, CY, midR, weekday, (AI + AD) / 2, (AD - AI) * 0.68, th.dateWindowText, '600 13px Cinzel, serif');
+  drawArcTextPhi(c, CX, CY, midR, dateStr, (AD + AO) / 2, (AO - AD) * 0.72, th.dateWindowText, '600 12px Cinzel, serif');
 
-  [
-    { x: dayX, w: dayW, text: String(dayOfYear), fontPx: 16 },
-    { x: dateX, w: dateW, text: dateStr, fontPx: 13 },
-  ].forEach(({ x, w, text, fontPx }) => {
-    c.fillStyle = th.dateWindowBg;
-    c.fillRect(x - w / 2, -h / 2 - 5, w, h);
-    c.strokeStyle = th.metalDeepest; c.lineWidth = 1;
-    c.strokeRect(x - w / 2, -h / 2 - 5, w, h);
-    c.fillStyle = th.dateWindowText;
-    c.font = `600 ${fontPx}px Cinzel, serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.fillText(text, x, -5 + 0.5);
-  });
+  drawArcTextPhi(c, CX, CY, rOut + 11, 'DAY' + '  ' + 'DATE', (AI + AO) / 2, AO - AI, th.subdialDim, '11px "Cormorant Garamond", serif');
+  drawArcTextPhi(c, CX, CY, rIn - 11, 'A.D. ' + year, (AI + AO) / 2, (AO - AI) * 0.55, th.subdialDim, '10px "Cormorant Garamond", serif');
 
-  c.fillStyle = th.subdialDim;
-  c.font = '11px "Cormorant Garamond", serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.fillText('A.D. ' + year, 0, panelBottom - 8);
-
-  // small rivets at the panel corners, echoing the shield's own rivets,
-  // rather than a circular bezel ring
-  [
-    [-panelW / 2 + 6, panelTop + 6], [panelW / 2 - 6, panelTop + 6],
-    [-panelW / 2 + 6, panelBottom - 6], [panelW / 2 - 6, panelBottom - 6],
-  ].forEach(([rx, ry]) => {
+  // small rivets at the band's outer corners, echoing the shield's own rivets
+  [AI, AO].forEach(phiDeg => {
+    const p = deg2rad(phiDeg);
+    const rx = CX + Math.cos(p) * (rOut - 6), ry = CY + Math.sin(p) * (rOut - 6);
     c.beginPath(); c.arc(rx, ry, 2.2, 0, 2 * Math.PI);
     c.fillStyle = th.metalDeepest; c.fill();
     c.beginPath(); c.arc(rx - 0.6, ry - 0.6, 0.8, 0, 2 * Math.PI);
     c.fillStyle = 'rgba(255,255,255,0.5)'; c.fill();
   });
-
-  c.restore();
 }
 
 function isRetrograde(p, T) {
