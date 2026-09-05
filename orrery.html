@@ -1162,6 +1162,25 @@ function render() {
     ctx.lineTo(Math.cos(a) * ringOuter, -Math.sin(a) * ringOuter);
     ctx.stroke();
   }
+
+  // solstice/equinox marks at the four cardinal points of the Sun's
+  // ecliptic longitude (0/90/180/270 -- the same value sunSignIndex already
+  // uses), color-coded by season -- no labels, just a colored tick.
+  [
+    { lon: 0, color: '#e8a5c4' },   // spring equinox -- pink
+    { lon: 90, color: '#7fbf7f' },  // summer solstice -- green
+    { lon: 180, color: '#e0c14a' }, // fall equinox -- yellow
+    { lon: 270, color: '#c8ccd1' }, // winter solstice -- silver
+  ].forEach(({ lon, color }) => {
+    const a = deg2rad(lon);
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * (ringOuter - 4), -Math.sin(a) * (ringOuter - 4));
+    ctx.lineTo(Math.cos(a) * (ringOuter + 10), -Math.sin(a) * (ringOuter + 10));
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+  });
+
   ctx.restore();
 
   // orbit rings (static, based on mean semi-major axis)
