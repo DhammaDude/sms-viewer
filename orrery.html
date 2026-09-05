@@ -137,13 +137,11 @@
   #main { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: auto; padding: 20px; min-width: 0; min-height: 0; }
   #dial-wrap { position: relative; max-width: 100%; }
   canvas#dial { display: block; max-width: 100%; height: auto; }
-  #dial-wrap.compact canvas#dial {
-    aspect-ratio: 940 / 856;
-    object-fit: cover;
-    object-position: top;
-    height: auto;
-  }
 
+  /* Fullscreen shows only the complications plate (Metonic/Moon/Day-Date) --
+     crop to that bottom slice of the canvas (real canvas is 940x1130; the
+     complications plate occupies roughly its bottom 330px) and let it fill
+     the screen, hiding the planetary dial and case ring entirely. */
   #dial-wrap:fullscreen {
     display: flex;
     align-items: center;
@@ -152,6 +150,9 @@
   }
   #dial-wrap:fullscreen canvas#dial,
   #dial-wrap:-webkit-full-screen canvas#dial {
+    aspect-ratio: 940 / 330;
+    object-fit: cover;
+    object-position: bottom;
     width: auto;
     height: 100vh;
     max-width: 100vw;
@@ -199,8 +200,7 @@
     <div class="row" style="justify-content: space-between; align-items: flex-start;">
       <h1>Orrery Chronometer</h1>
       <div class="row" style="gap: 6px;">
-        <button class="ctl" id="compact-toggle" title="Show just the dial, hide the complications plate">Compact</button>
-        <button class="ctl" id="fullscreen-toggle" title="Fill the screen with just the dial">Fullscreen</button>
+        <button class="ctl" id="fullscreen-toggle" title="Show just the complications plate, fullscreen">Fullscreen</button>
         <button class="ctl" id="theme-toggle" title="Switch case material">Steel</button>
       </div>
     </div>
@@ -576,15 +576,6 @@ themeToggleBtn.addEventListener('click', () => {
   currentThemeName = currentThemeName === 'brass' ? 'steel' : 'brass';
   applyTheme();
   render();
-});
-
-const compactToggleBtn = document.getElementById('compact-toggle');
-let compactView = false;
-compactToggleBtn.addEventListener('click', () => {
-  compactView = !compactView;
-  dialWrap.classList.toggle('compact', compactView);
-  compactToggleBtn.classList.toggle('active', compactView);
-  compactToggleBtn.textContent = compactView ? 'Full View' : 'Compact';
 });
 
 const fullscreenToggleBtn = document.getElementById('fullscreen-toggle');
