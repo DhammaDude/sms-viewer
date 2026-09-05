@@ -1392,13 +1392,19 @@ function drawShieldPlate(c, cx, cy, th) {
   grad.addColorStop(1, th.caseGradStops[2]);
   c.fillStyle = grad;
   c.fill();
+  // Stroke the outline now, while this path is still the canvas's current
+  // path -- brushFlat() below calls beginPath() internally for each of its
+  // streaks, and the "current path" isn't part of the state save()/restore()
+  // protects, so stroking this same path AFTER brushFlat runs would silently
+  // re-stroke whatever streak it happened to draw last instead (the cause of
+  // a stray short line elsewhere on the plate).
+  c.strokeStyle = th.metalDeepest;
+  c.lineWidth = 2;
+  c.stroke();
   c.save();
   c.clip(); // the path above is still current; confines the brush streaks to the shield's own silhouette
   brushFlat(c, -(Rcase + 260), tipY, (Rcase + 260) * 2, shieldOuterRadius(90) - tipY, 23);
   c.restore();
-  c.strokeStyle = th.metalDeepest;
-  c.lineWidth = 2;
-  c.stroke();
 
   // fluted edge — reeded ticks following the outer curve, like a coin's edge
   for (let phi = SHIELD_TIP_DEG; phi <= 180 - SHIELD_TIP_DEG; phi += 2) {
