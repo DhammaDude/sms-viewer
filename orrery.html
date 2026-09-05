@@ -1096,11 +1096,10 @@ function render() {
     return { x: CX + Math.cos(p) * placementR, y: CY + Math.sin(p) * placementR };
   }
 
-  const metonicR = 52, moonR = 76;
-  const metonicPos = lobeCenter(55, metonicR);
+  const moonR = 76;
   const moonPos = lobeCenter(90, moonR);
 
-  drawMetonicDial(ctx, metonicPos.x, metonicPos.y, metonicR, metonicYear, th);
+  drawMetonicDial(ctx, CX, CY, metonicYear, th);
   drawMoonPhase(ctx, moonPos.x, moonPos.y, moonR, moonPhase, th);
   drawDayDateDial(ctx, CX, CY, weekday, dateStr, currentDate.getUTCFullYear(), th);
 
@@ -1287,51 +1286,91 @@ function drawMoonPhase(c, cx, cy, r, phase, th) {
   c.restore();
 }
 
-// Power-reserve-style fan gauge for the 19-year Metonic lunisolar cycle.
-function drawMetonicDial(c, cx, cy, r, year, th) {
+// A single tangent-aligned label (not spread across an arc) -- used for the
+// numerals on the Metonic gauge, which are plain multi-digit numbers rather
+// than the letter-by-letter arc text drawArcTextPhi is built for.
+function drawTangentLabel(c, cx, cy, r, phiDeg, text, color, font) {
+  const phi = deg2rad(phiDeg);
   c.save();
-  c.translate(cx, cy);
-
-  c.beginPath(); c.arc(0, 0, r, Math.PI, 2 * Math.PI);
-  c.lineTo(-r * 0.55, r * 0.35); c.closePath();
-  c.fillStyle = th.subdialFace; c.fill();
-
-  const angleFor = y => Math.PI + ((y - 1) / 18) * Math.PI;
-
-  c.beginPath(); c.arc(0, 0, r - 6, Math.PI, 2 * Math.PI); c.strokeStyle = th.metalDark; c.lineWidth = 3; c.stroke();
-  c.beginPath(); c.arc(0, 0, r - 6, Math.PI, angleFor(year)); c.strokeStyle = th.metalBright; c.lineWidth = 3; c.stroke();
-
-  [1, 5, 10, 15, 19].forEach(y => {
-    const a = angleFor(y);
-    c.beginPath();
-    c.moveTo(Math.cos(a) * (r - 11), Math.sin(a) * (r - 11));
-    c.lineTo(Math.cos(a) * (r - 2), Math.sin(a) * (r - 2));
-    c.strokeStyle = th.metalMid; c.lineWidth = 1; c.stroke();
-    c.fillStyle = th.subdialDim; c.font = '600 12px Cinzel, serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.fillText(y, Math.cos(a) * (r - 20), Math.sin(a) * (r - 20));
-  });
-
-  const na = angleFor(year);
-  c.beginPath();
-  c.moveTo(Math.cos(na + Math.PI) * 4, Math.sin(na + Math.PI) * 4);
-  c.lineTo(Math.cos(na) * (r - 8), Math.sin(na) * (r - 8));
-  c.strokeStyle = th.accentHand; c.lineWidth = 2; c.stroke();
-  c.beginPath(); c.arc(0, 0, 3, 0, 2 * Math.PI); c.fillStyle = '#c9a54a'; c.fill();
-
-  // A shallow recess milled straight into the shield, tracing the fan's own
-  // silhouette (arc + wedge sides closed) exactly, rather than a raised
-  // bezel ring sitting on top of the plate — the same "integrated" groove
-  // treatment as the Day-Date panel.
-  [r + 4, r + 1.5].forEach((rr, i) => {
-    c.beginPath();
-    c.arc(0, 0, rr, Math.PI, 2 * Math.PI);
-    c.lineTo(-rr * 0.55, rr * 0.35);
-    c.closePath();
-    c.strokeStyle = i === 0 ? th.metalDeepest : 'rgba(255,255,255,0.15)';
-    c.lineWidth = i === 0 ? 1.5 : 1;
-    c.stroke();
-  });
+  c.translate(cx + Math.cos(phi) * r, cy + Math.sin(phi) * r);
+  c.rotate(phi - Math.PI / 2);
+  c.fillStyle = color; c.font = font; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText(text, 0, 0);
   c.restore();
+}
+
+// The 19-year Metonic lunisolar cycle, as a curved progress band -- the
+// same construction as the Day-Date band (arcs centered on the dial's own
+// center, CX/CY), mirrored across the bottom pole so the two side
+// complications read as a genuine symmetric pair either side of the Moon.
+// MO/MI mirror the Day-Date band's AO/AI (130/110): MI, the limit nearer
+// the Moon dial, mirrors AI; MO, nearer this wing's own tip, mirrors AO.
+function drawMetonicDial(c, CX, CY, year, th) {
+  const MO = 50, MI = 70;
+  const rIn = 490, rOut = 530;
+
+  function sector(a0Deg, a1Deg, r0, r1) {
+    c.beginPath();
+    c.arc(CX, CY, r1, deg2rad(a0Deg), deg2rad(a1Deg));
+    c.arc(CX, CY, r0, deg2rad(a1Deg), deg2rad(a0Deg), true);
+    c.closePath();
+  }
+
+  // recessed band, same treatment as the Day-Date band
+  sector(MO, MI, rIn, rOut);
+  c.fillStyle = 'rgba(0,0,0,0.2)'; c.fill();
+  c.strokeStyle = th.metalDeepest; c.lineWidth = 1.5; c.stroke();
+  sector(MO + 0.5, MI - 0.5, rIn + 2, rOut - 2);
+  c.strokeStyle = 'rgba(255,255,255,0.15)'; c.lineWidth = 1; c.stroke();
+
+  // the gauge cell itself
+  sector(MO + 1, MI - 1, rIn + 4, rOut - 4);
+  c.fillStyle = th.dateWindowBg; c.fill();
+
+  // ticks/progress map onto an inset range so year 1/19 don't land right on
+  // the band's own edges (and corner rivets)
+  const A0 = MO + 3, A1 = MI - 3;
+  const angleFor = y => A0 + ((y - 1) / 18) * (A1 - A0);
+
+  // progress track: a dim full track, with the elapsed portion lit bright
+  const trackR = (rIn + rOut) / 2;
+  c.beginPath(); c.arc(CX, CY, trackR, deg2rad(A0), deg2rad(A1));
+  c.strokeStyle = th.metalDark; c.lineWidth = 5; c.stroke();
+  c.beginPath(); c.arc(CX, CY, trackR, deg2rad(A0), deg2rad(angleFor(year)));
+  c.strokeStyle = th.metalBright; c.lineWidth = 5; c.stroke();
+
+  // tick marks + numerals at 1, 5, 10, 15, 19
+  [1, 5, 10, 15, 19].forEach(y => {
+    const a = deg2rad(angleFor(y));
+    const x0 = CX + Math.cos(a) * (rIn + 6), y0 = CY + Math.sin(a) * (rIn + 6);
+    const x1 = CX + Math.cos(a) * (rOut - 6), y1 = CY + Math.sin(a) * (rOut - 6);
+    c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1);
+    c.strokeStyle = th.metalMid; c.lineWidth = 1; c.stroke();
+  });
+  drawTangentLabel(c, CX, CY, rIn - 11, angleFor(1), '1', th.subdialDim, '600 10px Cinzel, serif');
+  drawTangentLabel(c, CX, CY, rIn - 11, angleFor(5), '5', th.subdialDim, '600 10px Cinzel, serif');
+  drawTangentLabel(c, CX, CY, rIn - 11, angleFor(10), '10', th.subdialDim, '600 10px Cinzel, serif');
+  drawTangentLabel(c, CX, CY, rIn - 11, angleFor(15), '15', th.subdialDim, '600 10px Cinzel, serif');
+  drawTangentLabel(c, CX, CY, rIn - 11, angleFor(19), '19', th.subdialDim, '600 10px Cinzel, serif');
+
+  // current-year marker, echoing the old gauge's hand
+  const na = deg2rad(angleFor(year));
+  c.beginPath(); c.arc(CX + Math.cos(na) * trackR, CY + Math.sin(na) * trackR, 4, 0, 2 * Math.PI);
+  c.fillStyle = th.accentHand; c.fill();
+  c.strokeStyle = th.metalDeepest; c.lineWidth = 1; c.stroke();
+
+  drawArcTextPhi(c, CX, CY, rOut + 11, 'METONIC CYCLE', (MO + MI) / 2, MI - MO, th.subdialDim, '11px "Cormorant Garamond", serif');
+  drawArcTextPhi(c, CX, CY, rIn - 28, 'YEAR ' + year + '/19', (MO + MI) / 2, (MI - MO) * 0.6, th.subdialDim, '10px "Cormorant Garamond", serif');
+
+  // small rivets at the band's outer corners, matching the Day-Date band
+  [MO, MI].forEach(phiDeg => {
+    const p = deg2rad(phiDeg);
+    const rx = CX + Math.cos(p) * (rOut - 6), ry = CY + Math.sin(p) * (rOut - 6);
+    c.beginPath(); c.arc(rx, ry, 2.2, 0, 2 * Math.PI);
+    c.fillStyle = th.metalDeepest; c.fill();
+    c.beginPath(); c.arc(rx - 0.6, ry - 0.6, 0.8, 0, 2 * Math.PI);
+    c.fillStyle = 'rgba(255,255,255,0.5)'; c.fill();
+  });
 }
 
 // Text set along an arc using the shield's own angle convention (phi=90 is
