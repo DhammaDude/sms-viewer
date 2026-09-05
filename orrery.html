@@ -136,7 +136,10 @@
   /* ── Main dial area ── */
   #main { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: auto; padding: 20px; min-width: 0; min-height: 0; }
   #dial-wrap { position: relative; max-width: 100%; }
-  canvas#dial { display: block; max-width: 100%; height: auto; }
+  /* Base display size matches the logical 940x1130 drawing space even
+     though the backing pixel buffer is scaled up by devicePixelRatio --
+     max-width/height-auto still shrink it responsively on narrow screens. */
+  canvas#dial { display: block; width: 940px; max-width: 100%; height: auto; }
 
   /* "Fullscreen" is a CSS-only overlay (not the browser Fullscreen API,
      which needs a permission an embedded preview may not grant) -- it fixes
@@ -561,6 +564,17 @@ const planetList  = document.getElementById('planet-list');
 const detailPanel = document.getElementById('detail-panel');
 const dial        = document.getElementById('dial');
 const ctx         = dial.getContext('2d');
+
+// Render at the screen's real pixel density instead of a fixed 940x1130
+// bitmap, so lines and text stay crisp when the browser scales the canvas
+// up -- most noticeably in fullscreen, where it can fill an entire retina
+// display. LOGICAL_W/H are the drawing coordinate space every draw call in
+// this file already uses; only the backing buffer and CSS size change here.
+const LOGICAL_W = 940, LOGICAL_H = 1130;
+const DIAL_DPR = window.devicePixelRatio || 1;
+dial.width = LOGICAL_W * DIAL_DPR;
+dial.height = LOGICAL_H * DIAL_DPR;
+ctx.scale(DIAL_DPR, DIAL_DPR);
 const almanacLine = document.getElementById('almanac-line');
 const dialWrap    = document.getElementById('dial-wrap');
 const exportBtn   = document.getElementById('export-btn');
@@ -999,9 +1013,9 @@ function render() {
 
   const th = theme();
 
-  ctx.clearRect(0, 0, dial.width, dial.height);
+  ctx.clearRect(0, 0, LOGICAL_W, LOGICAL_H);
   ctx.fillStyle = th.caseBg;
-  ctx.fillRect(0, 0, dial.width, dial.height);
+  ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
 
   // polished case ring (outermost)
   drawFlutedRing(ctx, CX, CY, R_MAX + 52, R_MAX + 76, 140, th);
@@ -1593,8 +1607,8 @@ function renderDetail(name, positions) {
 
 dial.addEventListener('click', e => {
   const rect = dial.getBoundingClientRect();
-  const mx = (e.clientX - rect.left) * (dial.width / rect.width);
-  const my = (e.clientY - rect.top) * (dial.height / rect.height);
+  const mx = (e.clientX - rect.left) * (LOGICAL_W / rect.width);
+  const my = (e.clientY - rect.top) * (LOGICAL_H / rect.height);
   let best = null, bestD = 22;
   PLANETS.forEach(p => {
     if (!p._screen) return;
