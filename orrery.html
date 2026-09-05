@@ -933,7 +933,9 @@ function drawTimeRing(c, cx, cy, th) {
   c.lineTo(radial.x * hBase - tangent.x * hHalfWidth, radial.y * hBase - tangent.y * hHalfWidth);
   c.closePath();
   c.fillStyle = EARTH_BLUE;
+  c.shadowColor = 'rgba(0,0,0,0.45)'; c.shadowBlur = 3; c.shadowOffsetX = 0.5; c.shadowOffsetY = 1;
   c.fill();
+  c.shadowColor = 'transparent'; c.shadowBlur = 0; c.shadowOffsetX = 0; c.shadowOffsetY = 0;
   c.strokeStyle = th.metalDeepest; c.lineWidth = 0.75;
   c.stroke();
 
@@ -943,7 +945,9 @@ function drawTimeRing(c, cx, cy, th) {
   c.moveTo(Math.cos(am) * (rIn + 1), -Math.sin(am) * (rIn + 1));
   c.lineTo(Math.cos(am) * (rOut - 2), -Math.sin(am) * (rOut - 2));
   c.strokeStyle = EARTH_BLUE; c.lineWidth = 1.8; c.lineCap = 'round';
+  c.shadowColor = 'rgba(0,0,0,0.4)'; c.shadowBlur = 2.5; c.shadowOffsetX = 0.5; c.shadowOffsetY = 1;
   c.stroke();
+  c.shadowColor = 'transparent'; c.shadowBlur = 0; c.shadowOffsetX = 0; c.shadowOffsetY = 0;
 
   // second marker — Earth blue too, thinner, sweeps continuously
   const as = deg2rad(90 - secFrac * 6);
@@ -951,9 +955,11 @@ function drawTimeRing(c, cx, cy, th) {
   c.moveTo(Math.cos(as) * (rIn + 1), -Math.sin(as) * (rIn + 1));
   c.lineTo(Math.cos(as) * (rOut - 1), -Math.sin(as) * (rOut - 1));
   c.strokeStyle = EARTH_BLUE; c.lineWidth = 1.2; c.lineCap = 'round';
+  c.shadowColor = 'rgba(0,0,0,0.35)'; c.shadowBlur = 2; c.shadowOffsetX = 0.5; c.shadowOffsetY = 0.75;
   c.stroke();
   c.beginPath(); c.arc(Math.cos(as) * (rIn + 1), -Math.sin(as) * (rIn + 1), 1.8, 0, 2 * Math.PI);
   c.fillStyle = EARTH_BLUE; c.fill();
+  c.shadowColor = 'transparent'; c.shadowBlur = 0; c.shadowOffsetX = 0; c.shadowOffsetY = 0;
 
   c.lineCap = 'butt';
   c.restore();
@@ -1125,7 +1131,10 @@ function render() {
   sunGrad.addColorStop(0, '#fff3c9');
   sunGrad.addColorStop(1, '#c46a3a');
   ctx.beginPath(); ctx.arc(0, 0, 16, 0, 2 * Math.PI);
-  ctx.fillStyle = sunGrad; ctx.fill();
+  ctx.fillStyle = sunGrad;
+  ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+  ctx.fill();
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
   ctx.strokeStyle = th.metalMid; ctx.lineWidth = 2; ctx.stroke();
   ctx.beginPath(); ctx.arc(-5, -5, 3, 0, 2 * Math.PI);
   ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fill();
@@ -1353,7 +1362,10 @@ function drawShieldPlate(c, cx, cy, th) {
 
 function drawComplicationBezel(c, r, th) {
   c.beginPath(); c.arc(0, 0, r + 6, 0, 2 * Math.PI);
-  c.strokeStyle = th.metalBright; c.lineWidth = 2; c.stroke();
+  c.strokeStyle = th.metalBright; c.lineWidth = 2;
+  c.shadowColor = 'rgba(0,0,0,0.4)'; c.shadowBlur = 4; c.shadowOffsetY = 1.5;
+  c.stroke();
+  c.shadowColor = 'transparent'; c.shadowBlur = 0; c.shadowOffsetY = 0;
   c.beginPath(); c.arc(0, 0, r + 2, 0, 2 * Math.PI);
   c.strokeStyle = th.metalMid; c.lineWidth = 1; c.stroke();
 }
