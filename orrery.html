@@ -138,17 +138,20 @@
   #dial-wrap { position: relative; max-width: 100%; }
   canvas#dial { display: block; max-width: 100%; height: auto; }
 
-  /* Fullscreen shows the whole watch face (case, planetary dial, and every
-     complication) exactly as drawn -- no cropping -- just scaled up to fill
-     the screen as large as it will go. */
-  #dial-wrap:fullscreen {
+  /* "Fullscreen" is a CSS-only overlay (not the browser Fullscreen API,
+     which needs a permission an embedded preview may not grant) -- it fixes
+     dial-wrap over the whole viewport and lets the canvas scale to fill it,
+     showing the whole watch face exactly as drawn, no cropping. */
+  #dial-wrap.pseudo-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
     display: flex;
     align-items: center;
     justify-content: center;
     background: var(--bg);
   }
-  #dial-wrap:fullscreen canvas#dial,
-  #dial-wrap:-webkit-full-screen canvas#dial {
+  #dial-wrap.pseudo-fullscreen canvas#dial {
     width: auto;
     height: 100vh;
     max-width: 100vw;
@@ -196,7 +199,7 @@
     <div class="row" style="justify-content: space-between; align-items: flex-start;">
       <h1>Orrery Chronometer</h1>
       <div class="row" style="gap: 6px;">
-        <button class="ctl" id="fullscreen-toggle" title="Show just the complications plate, fullscreen">Fullscreen</button>
+        <button class="ctl" id="fullscreen-toggle" title="Fill the screen with the dial">Fullscreen</button>
         <button class="ctl" id="theme-toggle" title="Switch case material">Steel</button>
       </div>
     </div>
@@ -575,22 +578,17 @@ themeToggleBtn.addEventListener('click', () => {
 });
 
 const fullscreenToggleBtn = document.getElementById('fullscreen-toggle');
-fullscreenToggleBtn.addEventListener('click', () => {
-  if (!document.fullscreenElement) {
-    const request = dialWrap.requestFullscreen || dialWrap.webkitRequestFullscreen;
-    if (!request) { alert("This browser doesn't support fullscreen."); return; }
-    Promise.resolve(request.call(dialWrap)).catch(() => alert("Couldn't enter fullscreen here."));
-  } else {
-    const exit = document.exitFullscreen || document.webkitExitFullscreen;
-    if (exit) exit.call(document);
-  }
-});
-['fullscreenchange', 'webkitfullscreenchange'].forEach(evt => {
-  document.addEventListener(evt, () => {
-    const isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
-    fullscreenToggleBtn.classList.toggle('active', isFullscreen);
-    fullscreenToggleBtn.textContent = isFullscreen ? 'Exit Fullscreen' : 'Fullscreen';
-  });
+let pseudoFullscreen = false;
+function setPseudoFullscreen(on) {
+  pseudoFullscreen = on;
+  dialWrap.classList.toggle('pseudo-fullscreen', pseudoFullscreen);
+  fullscreenToggleBtn.classList.toggle('active', pseudoFullscreen);
+  fullscreenToggleBtn.textContent = pseudoFullscreen ? 'Exit Fullscreen' : 'Fullscreen';
+  document.body.style.overflow = pseudoFullscreen ? 'hidden' : '';
+}
+fullscreenToggleBtn.addEventListener('click', () => setPseudoFullscreen(!pseudoFullscreen));
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && pseudoFullscreen) setPseudoFullscreen(false);
 });
 
 const jumpNewMoonBtn = document.getElementById('jump-new-moon-btn');
