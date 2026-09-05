@@ -843,15 +843,20 @@ function mulberry32(seed) {
 }
 
 // Subtle circular brushing -- fine concentric lathe-turning marks -- for a
-// ring band. Each streak's radius is already confined to [rIn, rOut], so
-// this needs no clipping.
+// ring band. Streak ARC LENGTH (not angular span) is capped to a small,
+// fixed pixel range regardless of radius, so marks stay short scratches
+// rather than scaling into long, faintly-visible bands on a bigger ring.
+// Each streak's radius is already confined to [rIn, rOut], so this needs
+// no clipping.
 function brushRing(c, cx, cy, rIn, rOut, seed) {
   const rnd = mulberry32(seed);
-  const lines = 90, alpha = 0.05;
+  const lines = Math.min(220, Math.max(120, Math.round((rOut - rIn) * (rIn + rOut) * 0.01)));
+  const alpha = 0.05;
   for (let i = 0; i < lines; i++) {
-    const r = rIn + (rOut - rIn) * (i / lines) + (rnd() - 0.5) * 1.2;
+    const r = rIn + rnd() * (rOut - rIn);
+    const arcLen = 5 + rnd() * 14; // px, independent of the ring's own size
     const a0 = rnd() * Math.PI * 2;
-    const span = 0.6 + rnd() * 5.2;
+    const span = arcLen / r;
     c.beginPath();
     c.arc(cx, cy, r, a0, a0 + span);
     c.strokeStyle = rnd() > 0.5
@@ -862,16 +867,22 @@ function brushRing(c, cx, cy, rIn, rOut, seed) {
   }
 }
 
-// Subtle satin/linear brushing for a flat plate. Assumes the caller has
+// Subtle satin/linear brushing for a flat plate. Streak length is a small,
+// fixed pixel range regardless of the plate's own size (the earlier version
+// scaled length with the bounding box width, which on the real shield --
+// much wider than the mockup swatch it was tuned against -- produced
+// streaks hundreds of pixels long: individually faint, but long enough to
+// read as a stray line rather than fine grain). Assumes the caller has
 // already clipped to the plate's own silhouette, since streaks are random
 // line segments that would otherwise spill past an irregular outline.
 function brushFlat(c, x, y, w, h, seed) {
   const rnd = mulberry32(seed);
-  const lines = 90, alpha = 0.05;
+  const lines = Math.min(320, Math.max(200, Math.round((w * h) / 900)));
+  const alpha = 0.05;
   for (let i = 0; i < lines; i++) {
+    const lx0 = x + rnd() * w;
     const ly = y + rnd() * h;
-    const lx0 = x + rnd() * w * 0.3;
-    const len = w * (0.4 + rnd() * 0.6);
+    const len = 8 + rnd() * 20; // px, independent of the plate's own size
     c.beginPath();
     c.moveTo(lx0, ly);
     c.lineTo(lx0 + len, ly + (rnd() - 0.5) * 1.5);
