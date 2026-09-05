@@ -937,29 +937,19 @@ function drawArcText(c, cx, cy, radius, text, centerAngleDeg, spreadDeg, color, 
   c.restore();
 }
 
-// The Galilean-moon complication: a short curved strip riding on Jupiter's
+// The Galilean-moon complication: four small dots wobbling around Jupiter's
 // own orbit ring, anchored to wherever Jupiter currently sits, rather than
 // living on the shield. Uses this dial's own astronomical convention
 // (x=cos(lon)*r, y=-sin(lon)*r) throughout, matching how Jupiter itself is
-// drawn -- so the strip stays locked to Jupiter's real screen position as
+// drawn -- so the dots stay locked to Jupiter's real screen position as
 // the simulation date changes, instead of a fixed spot on the case.
 function drawGalileanStrip(c, cx, cy, jupiterPos, JD, th) {
   const rr = scaleR(jupiterPos.r);
   const lon = jupiterPos.lon;
-  const span = 26; // degrees of ecliptic longitude the strip covers
-  const l0 = lon - span / 2, l1 = lon + span / 2;
-  const r0 = rr - 9, r1 = rr + 9;
+  const span = 26; // degrees of ecliptic longitude the moons' wobble covers
 
   c.save();
   c.translate(cx, cy);
-
-  // the band itself, following the same orbit-ring arc Jupiter travels on
-  c.beginPath();
-  c.arc(0, 0, r1, deg2rad(-l1), deg2rad(-l0));
-  c.arc(0, 0, r0, deg2rad(-l0), deg2rad(-l1), true);
-  c.closePath();
-  c.fillStyle = 'rgba(0,0,0,0.3)'; c.fill();
-  c.strokeStyle = th.metalDeepest; c.lineWidth = 1; c.stroke();
 
   const maxDist = GALILEAN_MOONS[GALILEAN_MOONS.length - 1].distR;
   GALILEAN_MOONS.forEach(m => {
