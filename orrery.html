@@ -149,7 +149,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--bg);
+    /* A dark theatrical backdrop, independent of the brass/steel case
+       theme -- the steel theme's own --bg is near-white, which read as a
+       blank void around the letterboxed dial rather than a display case. */
+    background: radial-gradient(ellipse at 50% 50%, #241a0d 0%, #120e08 75%);
   }
   #dial-wrap.pseudo-fullscreen canvas#dial {
     width: 100%;
