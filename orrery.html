@@ -685,10 +685,17 @@ function tick() {
   playTimer = setTimeout(tick, 1000 / 30);
 }
 
-// Keeps the real-time clock ring's second marker sweeping even while the
+// Keeps the real-time clock ring's hands sweeping smoothly even while the
 // orrery's own simulated date is paused (the play loop above already
-// re-renders often enough to cover the playing case).
-setInterval(() => { if (!playing) render(); }, 1000);
+// re-renders often enough to cover the playing case). drawTimeRing already
+// computes hand angles from fractional seconds/milliseconds, so rendering
+// every animation frame -- rather than once a second -- is what turns that
+// into an actual smooth sweep instead of a once-a-second jump.
+function clockLoop() {
+  if (!playing) render();
+  requestAnimationFrame(clockLoop);
+}
+requestAnimationFrame(clockLoop);
 
 // ─────────────────────────────────────────────────────────────────────────
 // JSON import / export (for external data analysis)
