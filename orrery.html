@@ -1317,15 +1317,17 @@ function drawMetonicDial(c, cx, cy, r, year, th) {
   c.strokeStyle = th.accentHand; c.lineWidth = 2; c.stroke();
   c.beginPath(); c.arc(0, 0, 3, 0, 2 * Math.PI); c.fillStyle = '#c9a54a'; c.fill();
 
-  // bezel traces the fan's own silhouette (arc + wedge sides closed), not a
-  // mismatched full circle, so the rim actually frames the shape beneath it
-  [r + 6, r + 2].forEach((rr, i) => {
+  // A shallow recess milled straight into the shield, tracing the fan's own
+  // silhouette (arc + wedge sides closed) exactly, rather than a raised
+  // bezel ring sitting on top of the plate — the same "integrated" groove
+  // treatment as the Day-Date panel.
+  [r + 4, r + 1.5].forEach((rr, i) => {
     c.beginPath();
     c.arc(0, 0, rr, Math.PI, 2 * Math.PI);
     c.lineTo(-rr * 0.55, rr * 0.35);
     c.closePath();
-    c.strokeStyle = i === 0 ? th.metalBright : th.metalMid;
-    c.lineWidth = i === 0 ? 2 : 1;
+    c.strokeStyle = i === 0 ? th.metalDeepest : 'rgba(255,255,255,0.15)';
+    c.lineWidth = i === 0 ? 1.5 : 1;
     c.stroke();
   });
   c.restore();
