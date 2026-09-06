@@ -139,7 +139,7 @@
   /* Base display size matches the logical 940x1130 drawing space even
      though the backing pixel buffer is scaled up by devicePixelRatio --
      max-width/height-auto still shrink it responsively on narrow screens. */
-  canvas#dial { display: block; width: 940px; max-width: 100%; height: auto; }
+  canvas#dial { display: block; width: 940px; max-width: 100%; height: auto; touch-action: none; }
 
   /* "Fullscreen" is a CSS-only overlay (not the browser Fullscreen API,
      which needs a permission an embedded preview may not grant) -- it fixes
@@ -472,14 +472,22 @@ function altAzToVec(azDeg, altDeg) {
 // what makes panning the sky view around possible. Returns the angular
 // distance from center (theta, radians) and the bearing around it; the
 // caller turns that into screen (x,y) with its own radius-per-radian scale.
-function projectSky(azDeg, altDeg, centerAzDeg, centerAltDeg) {
-  const v = altAzToVec(azDeg, altDeg);
-  const c = altAzToVec(centerAzDeg, centerAltDeg);
+// Right/up basis in the tangent plane at a given look direction -- shared
+// by the projection and by drag-panning, so both agree on which way is
+// "right" and "up" from any given center, including at the zenith itself.
+function basisAt(c) {
   const worldUp = { x: 0, y: 0, z: 1 };
   let right = crossVec(worldUp, c);
   const rightLen = Math.hypot(right.x, right.y, right.z);
   right = rightLen < 1e-6 ? { x: 1, y: 0, z: 0 } : { x: right.x / rightLen, y: right.y / rightLen, z: right.z / rightLen };
   const up2 = crossVec(c, right);
+  return { right, up2 };
+}
+
+function projectSky(azDeg, altDeg, centerAzDeg, centerAltDeg) {
+  const v = altAzToVec(azDeg, altDeg);
+  const c = altAzToVec(centerAzDeg, centerAltDeg);
+  const { right, up2 } = basisAt(c);
   const cosTheta = Math.max(-1, Math.min(1, dotVec(v, c)));
   const theta = Math.acos(cosTheta);
   const tx = v.x - c.x * cosTheta, ty = v.y - c.y * cosTheta, tz = v.z - c.z * cosTheta;
@@ -2056,26 +2064,92 @@ skyViewToggleBtn.addEventListener('click', () => {
   }
 });
 
+// Batch renders to at most once per animation frame -- pointermove can fire
+// far faster than the dial needs to be redrawn, and each render redraws the
+// whole watch face (case ring, shield, everything), not just the sky.
+let skyRenderScheduled = false;
+function scheduleSkyRender() {
+  if (skyRenderScheduled) return;
+  skyRenderScheduled = true;
+  requestAnimationFrame(() => { skyRenderScheduled = false; render(); });
+}
+
+// Drag-to-pan: displaces the look direction within the tangent plane at
+// wherever the drag STARTED (fixed for the whole gesture, recomputed fresh
+// each move rather than accumulated frame-to-frame) and renormalizes onto
+// the sphere. Unlike naively adding to azimuth/altitude, this stays well
+// behaved even when centered exactly on the zenith -- the default view --
+// where a flat az/alt grid degenerates and small drags used to spin the
+// view wildly.
 let skyDrag = null;
+const activePointers = new Map();
+
+function logicalPxPerClientPx() {
+  const rect = dial.getBoundingClientRect();
+  return LOGICAL_W / rect.width;
+}
+
+function startDragFromPointer(id) {
+  const p = activePointers.get(id);
+  const startVec = altAzToVec(skyView.centerAz, skyView.centerAlt);
+  skyDrag = { pointerId: id, x: p.x, y: p.y, startVec, ...basisAt(startVec) };
+}
+
 dial.addEventListener('pointerdown', e => {
   if (!skyViewActive) return;
-  skyDrag = { x: e.clientX, y: e.clientY, az: skyView.centerAz, alt: skyView.centerAlt };
   dial.setPointerCapture(e.pointerId);
+  activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (activePointers.size === 2) {
+    skyDrag = null; // two fingers down means pinch, not pan
+  } else if (activePointers.size === 1) {
+    startDragFromPointer(e.pointerId);
+  }
 });
+
 dial.addEventListener('pointermove', e => {
-  if (!skyViewActive || !skyDrag) return;
-  const rect = dial.getBoundingClientRect();
-  const pxPerLogical = rect.width / LOGICAL_W;
-  const dx = (e.clientX - skyDrag.x) / pxPerLogical;
-  const dy = (e.clientY - skyDrag.y) / pxPerLogical;
-  const degPerLogicalPx = (90 / R_MAX) / skyView.zoom;
-  skyView.centerAz = normDeg(skyDrag.az - dx * degPerLogicalPx);
-  skyView.centerAlt = Math.max(-15, Math.min(90, skyDrag.alt + dy * degPerLogicalPx));
-  render();
+  if (!skyViewActive || !activePointers.has(e.pointerId)) return;
+  activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+  if (activePointers.size === 2) {
+    const [a, b] = [...activePointers.values()];
+    const dist = Math.hypot(a.x - b.x, a.y - b.y);
+    if (skyDrag && skyDrag.pinchDist) {
+      skyView.zoom = Math.max(1, Math.min(8, skyView.zoom * (dist / skyDrag.pinchDist)));
+    }
+    skyDrag = { pinchDist: dist };
+    scheduleSkyRender();
+    return;
+  }
+
+  if (activePointers.size !== 1 || !skyDrag || !skyDrag.startVec) return;
+  const pxPerLogical = logicalPxPerClientPx();
+  const dx = (e.clientX - skyDrag.x) * pxPerLogical;
+  const dy = (e.clientY - skyDrag.y) * pxPerLogical;
+  const pxPerRad = (R_MAX / (Math.PI / 2)) * skyView.zoom;
+  // content follows the finger, like dragging a map
+  const u = -dx / pxPerRad, v = dy / pxPerRad;
+  const nx = skyDrag.startVec.x + skyDrag.right.x * u + skyDrag.up2.x * v;
+  const ny = skyDrag.startVec.y + skyDrag.right.y * u + skyDrag.up2.y * v;
+  const nz = skyDrag.startVec.z + skyDrag.right.z * u + skyDrag.up2.z * v;
+  const len = Math.hypot(nx, ny, nz) || 1;
+  const dirZ = nz / len;
+  skyView.centerAlt = Math.max(-15, Math.min(90, rad2deg(Math.asin(Math.max(-1, Math.min(1, dirZ))))));
+  skyView.centerAz = normDeg(rad2deg(Math.atan2(nx / len, ny / len)));
+  scheduleSkyRender();
 });
-['pointerup', 'pointercancel', 'pointerleave'].forEach(evt => {
-  dial.addEventListener(evt, () => { skyDrag = null; });
-});
+
+function endPointer(e) {
+  activePointers.delete(e.pointerId);
+  if (activePointers.size === 1) {
+    // one finger lifted out of a pinch -- resume panning from here instead
+    // of requiring both fingers to lift first
+    startDragFromPointer([...activePointers.keys()][0]);
+  } else {
+    skyDrag = null;
+  }
+}
+['pointerup', 'pointercancel', 'pointerleave'].forEach(evt => dial.addEventListener(evt, endPointer));
+
 dial.addEventListener('dblclick', e => {
   if (!skyViewActive) return;
   skyView.zoom = 1; skyView.centerAz = 0; skyView.centerAlt = 90;
@@ -2086,7 +2160,7 @@ dial.addEventListener('wheel', e => {
   e.preventDefault();
   const factor = Math.exp(-e.deltaY * 0.001);
   skyView.zoom = Math.max(1, Math.min(8, skyView.zoom * factor));
-  render();
+  scheduleSkyRender();
 }, { passive: false });
 
 setDate(new Date());
