@@ -2010,9 +2010,14 @@ function tryDeviceLocation() {
 
 const locationModalError = document.getElementById('location-modal-error');
 
+// Leamington, Ontario, Canada -- used to pre-fill the manual-entry fields
+// when device location isn't available, so there's a sensible default to
+// accept or adjust rather than a blank form.
+const DEFAULT_LOCATION = { lat: 42.0533, lon: -82.5992 };
+
 function showLocationModal(message) {
-  locationLatInput.value = '';
-  locationLonInput.value = '';
+  locationLatInput.value = DEFAULT_LOCATION.lat;
+  locationLonInput.value = DEFAULT_LOCATION.lon;
   locationModalError.textContent = message || '';
   locationModal.style.display = 'flex';
 }
