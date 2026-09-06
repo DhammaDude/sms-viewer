@@ -194,6 +194,25 @@
   #json-modal-actions { display: flex; gap: 8px; flex-wrap: wrap; }
   #json-modal-hint { font-size: 11px; color: var(--muted); }
 
+  /* ── Location modal (Sky View) ── */
+  #location-modal {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7);
+    z-index: 300; align-items: center; justify-content: center; padding: 16px;
+  }
+  #location-modal-box {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    width: min(420px, 100%); display: flex; flex-direction: column;
+    padding: 14px; gap: 10px;
+  }
+  #location-modal-hint { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  #location-modal-fields { display: flex; gap: 10px; }
+  #location-modal-fields label { flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--muted); }
+  #location-modal-fields input {
+    background: var(--input-bg); border: 1px solid var(--border); color: var(--parchment);
+    padding: 8px; border-radius: 6px; font-size: 13px; font-family: var(--font-body);
+  }
+  #location-modal-error { font-size: 12px; color: var(--danger); min-height: 1.2em; }
+
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -291,6 +310,25 @@
       <button class="ctl" id="json-modal-download">Try Direct Download</button>
     </div>
     <div id="json-modal-hint">If Copy doesn't work either, tap-and-hold inside the text above to select it manually.</div>
+  </div>
+</div>
+
+<div id="location-modal">
+  <div id="location-modal-box">
+    <div id="json-modal-head">
+      <span id="json-modal-title">Sky View Location</span>
+      <button class="ctl" id="location-modal-close">✕</button>
+    </div>
+    <div id="location-modal-hint">Couldn't use your device location automatically. Enter it manually so Sky View knows what's above your horizon.</div>
+    <div id="location-modal-fields">
+      <label>Latitude<input type="number" id="location-lat-input" step="any" min="-90" max="90" placeholder="e.g. 40.7" /></label>
+      <label>Longitude<input type="number" id="location-lon-input" step="any" min="-180" max="180" placeholder="e.g. -74.0" /></label>
+    </div>
+    <div id="location-modal-error"></div>
+    <div id="json-modal-actions">
+      <button class="ctl" id="location-retry-device">Try Device Location Again</button>
+      <button class="ctl" id="location-modal-use">Use This Location</button>
+    </div>
   </div>
 </div>
 
@@ -1923,35 +1961,76 @@ dial.addEventListener('click', e => {
 // ─────────────────────────────────────────────────────────────────────────
 // Sky View: location, and drag-to-pan / wheel-to-zoom on the dome
 // ─────────────────────────────────────────────────────────────────────────
+// window.prompt()/alert() are unreliable in embedded/sandboxed webviews (the
+// same reason JSON export uses an in-page modal instead of a real download)
+// -- so the manual-entry fallback here is a proper modal, not prompt().
+const locationModal = document.getElementById('location-modal');
+const locationLatInput = document.getElementById('location-lat-input');
+const locationLonInput = document.getElementById('location-lon-input');
+let locationOnReady = null;
+
 function ensureLocation(onReady) {
   if (observerLoc) { onReady(); return; }
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        observerLoc = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-        localStorage.setItem('antikythera-location', JSON.stringify(observerLoc));
-        onReady();
-      },
-      () => { promptForLocation(onReady); },
-      { timeout: 8000 }
-    );
-  } else {
-    promptForLocation(onReady);
-  }
+  locationOnReady = onReady;
+  tryDeviceLocation();
 }
 
-function promptForLocation(onReady) {
-  const input = prompt('Could not use your device location. Enter your latitude and longitude as "lat, lon" (e.g. 40.7, -74.0):', '0, 0');
-  if (input === null) return;
-  const parts = input.split(',').map(s => parseFloat(s.trim()));
-  if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-    observerLoc = { lat: parts[0], lon: parts[1] };
-    localStorage.setItem('antikythera-location', JSON.stringify(observerLoc));
-    onReady();
-  } else {
-    alert('Could not read that as "lat, lon". Sky View needs a location to know what is above your horizon.');
-  }
+function tryDeviceLocation() {
+  if (!navigator.geolocation) { showLocationModal("This browser doesn't support device location."); return; }
+  // Some embedded webviews silently withhold the permission prompt and
+  // never call EITHER callback -- and getCurrentPosition's own `timeout`
+  // option isn't reliably honored in that case either -- so this needs its
+  // own timer rather than trusting the API to give up on its own.
+  let settled = false;
+  const giveUp = setTimeout(() => {
+    if (settled) return;
+    settled = true;
+    showLocationModal("Couldn't get your device location -- enter it manually below.");
+  }, 5000);
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(giveUp);
+      observerLoc = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+      localStorage.setItem('antikythera-location', JSON.stringify(observerLoc));
+      locationModal.style.display = 'none';
+      if (locationOnReady) locationOnReady();
+    },
+    () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(giveUp);
+      showLocationModal("Couldn't get your device location -- enter it manually below.");
+    },
+    { timeout: 8000 }
+  );
 }
+
+const locationModalError = document.getElementById('location-modal-error');
+
+function showLocationModal(message) {
+  locationLatInput.value = '';
+  locationLonInput.value = '';
+  locationModalError.textContent = message || '';
+  locationModal.style.display = 'flex';
+}
+
+document.getElementById('location-modal-close').addEventListener('click', () => {
+  locationModal.style.display = 'none';
+});
+document.getElementById('location-retry-device').addEventListener('click', tryDeviceLocation);
+document.getElementById('location-modal-use').addEventListener('click', () => {
+  const lat = parseFloat(locationLatInput.value), lon = parseFloat(locationLonInput.value);
+  if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+    locationModalError.textContent = 'Enter a valid latitude (-90 to 90) and longitude (-180 to 180).';
+    return;
+  }
+  observerLoc = { lat, lon };
+  localStorage.setItem('antikythera-location', JSON.stringify(observerLoc));
+  locationModal.style.display = 'none';
+  if (locationOnReady) locationOnReady();
+});
 
 const skyViewToggleBtn = document.getElementById('sky-view-toggle');
 skyViewToggleBtn.addEventListener('click', () => {
