@@ -703,9 +703,13 @@ let playing = false;
 let playTimer = null;
 
 let skyViewActive = false;
+let selectedStar = null;
 let observerLoc = null;
 try { observerLoc = JSON.parse(localStorage.getItem('antikythera-location') || 'null'); } catch (e) { observerLoc = null; }
 const skyView = { zoom: 1, centerAz: 0, centerAlt: 90 };
+// Cached from the last render() so the click handler can hit-test Sky View
+// objects without recomputing planetary positions itself.
+let lastJD = null, lastPositions = null, lastEarth = null;
 
 const dateInput   = document.getElementById('date-input');
 const todayBtn    = document.getElementById('today-btn');
@@ -1271,9 +1275,14 @@ function drawSkyView(c, cx, cy, JD, positions, earth, th) {
     const p = toScreen(azDeg, altDeg);
     if (p.r > R_MAX) return;
     const r = starRadius(mag) * zoomScale;
+    const isSel = name === selectedStar;
     c.beginPath(); c.arc(p.x, p.y, r, 0, 2 * Math.PI);
     c.fillStyle = '#f4efe0'; c.fill();
-    if (mag < starLabelThreshold) {
+    if (isSel) {
+      c.beginPath(); c.arc(p.x, p.y, r + 4, 0, 2 * Math.PI);
+      c.strokeStyle = th.selectedStroke; c.lineWidth = 1.6; c.stroke();
+    }
+    if (mag < starLabelThreshold || isSel) {
       c.fillStyle = 'rgba(244,239,224,0.8)'; c.font = `${(9 * zoomScale).toFixed(1)}px "Cormorant Garamond", serif`;
       c.textAlign = 'left'; c.textBaseline = 'middle';
       c.fillText(name, p.x + r + 3, p.y);
@@ -1327,6 +1336,7 @@ function render() {
   const positions = {};
   PLANETS.forEach(p => { positions[p.name] = heliocentric(p, T); });
   const earth = positions['Earth'];
+  lastJD = JD; lastPositions = positions; lastEarth = earth;
   const sunGeoLon = normDeg(earth.lon + 180);
   const sunSignIndex = Math.floor(sunGeoLon / 30) % 12;
 
@@ -1567,7 +1577,8 @@ function render() {
   dial.setAttribute('aria-label', `Orrery dial for ${readout.textContent}. ${almanacLine.textContent}.`);
 
   renderList(positions);
-  if (selected) renderDetail(selected, positions);
+  if (skyViewActive && selectedStar) renderStarDetail(selectedStar);
+  else if (selected) renderDetail(selected, positions);
 }
 
 function moonPhaseLabel(p) {
@@ -1940,7 +1951,7 @@ function renderList(positions) {
         <div class="p-name">${p.name}${rx ? '<span class="p-rx">℞ Rx</span>' : ''}</div>
         <div class="p-meta">${pos.r.toFixed(2)} AU from Sun · ${zodiacSign(geoLon)}</div>
       </div>`;
-    row.addEventListener('click', () => { selected = p.name; render(); });
+    row.addEventListener('click', () => { selected = p.name; selectedStar = null; render(); });
     planetList.appendChild(row);
   });
 }
@@ -1965,18 +1976,74 @@ function renderDetail(name, positions) {
   `;
 }
 
+function renderStarDetail(name) {
+  const star = STARS.find(s => s[0] === name);
+  if (!star || !observerLoc || lastJD === null) return;
+  const [starName, raH, decDeg, mag] = star;
+  const lstDeg = localSiderealTimeDeg(lastJD, observerLoc.lon);
+  const { altDeg, azDeg } = altAzFromEq(raH * 15, decDeg, observerLoc.lat, lstDeg);
+  detailPanel.innerHTML = `
+    <h3>✦ ${starName}</h3>
+    <div>Apparent magnitude: ${mag.toFixed(2)}</div>
+    <div>Right ascension: ${raH.toFixed(2)}h · Declination: ${decDeg >= 0 ? '+' : ''}${decDeg.toFixed(1)}°</div>
+    <div>${altDeg >= 0 ? `Altitude: ${altDeg.toFixed(1)}° · Azimuth: ${azDeg.toFixed(1)}°` : 'Below the horizon from here right now'}</div>
+  `;
+}
+
+// Tap-to-identify: hit-tests the same projected positions drawSkyView just
+// drew (recomputed here rather than shared, since drawSkyView's toScreen is
+// a local closure) against both stars and planets, picking whichever is
+// nearest the tap within tolerance.
 dial.addEventListener('click', e => {
-  if (skyViewActive) return; // dragging the sky view stands in for planet-picking here
   const rect = dial.getBoundingClientRect();
   const mx = (e.clientX - rect.left) * (LOGICAL_W / rect.width);
   const my = (e.clientY - rect.top) * (LOGICAL_H / rect.height);
+
+  if (skyViewActive) {
+    if (skyDragMoved) { skyDragMoved = false; return; } // a drag gesture's terminal click isn't a tap
+    if (!observerLoc || lastJD === null) return;
+    const cx = mx - CX, cy = my - CY;
+    const lstDeg = localSiderealTimeDeg(lastJD, observerLoc.lon);
+    const pxPerRad = (R_MAX / (Math.PI / 2)) * skyView.zoom;
+    let best = null, bestType = null, bestD = 24;
+
+    STARS.forEach(([name, raH, decDeg]) => {
+      const { altDeg, azDeg } = altAzFromEq(raH * 15, decDeg, observerLoc.lat, lstDeg);
+      if (altDeg < -2) return;
+      const { theta, bearing } = projectSky(azDeg, altDeg, skyView.centerAz, skyView.centerAlt);
+      const r = theta * pxPerRad;
+      if (r > R_MAX) return;
+      const d = Math.hypot(cx - r * Math.sin(bearing), cy - (-r * Math.cos(bearing)));
+      if (d < bestD) { bestD = d; best = name; bestType = 'star'; }
+    });
+
+    PLANETS.forEach(pl => {
+      if (pl.name === 'Earth') return;
+      const eq = geocentricEquatorial(lastPositions[pl.name], lastEarth);
+      const { altDeg, azDeg } = altAzFromEq(eq.raDeg, eq.decDeg, observerLoc.lat, lstDeg);
+      if (altDeg < -2) return;
+      const { theta, bearing } = projectSky(azDeg, altDeg, skyView.centerAz, skyView.centerAlt);
+      const r = theta * pxPerRad;
+      if (r > R_MAX) return;
+      const d = Math.hypot(cx - r * Math.sin(bearing), cy - (-r * Math.cos(bearing)));
+      if (d < bestD) { bestD = d; best = pl.name; bestType = 'planet'; }
+    });
+
+    if (best) {
+      if (bestType === 'star') { selectedStar = best; }
+      else { selected = best; selectedStar = null; }
+      render();
+    }
+    return;
+  }
+
   let best = null, bestD = 22;
   PLANETS.forEach(p => {
     if (!p._screen) return;
     const d = Math.hypot(mx - p._screen.x, my - p._screen.y);
     if (d < bestD) { bestD = d; best = p.name; }
   });
-  if (best) { selected = best; render(); }
+  if (best) { selected = best; selectedStar = null; render(); }
 });
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -2095,6 +2162,10 @@ function scheduleSkyRender() {
 // view wildly.
 let skyDrag = null;
 const activePointers = new Map();
+// Distinguishes a tap from a drag: the terminal 'click' after a pan/pinch
+// gesture shouldn't also be treated as tap-to-identify.
+let skyDragMoved = false;
+let skyPointerDownClient = null;
 
 function logicalPxPerClientPx() {
   const rect = dial.getBoundingClientRect();
@@ -2114,6 +2185,8 @@ dial.addEventListener('pointerdown', e => {
   if (activePointers.size === 2) {
     skyDrag = null; // two fingers down means pinch, not pan
   } else if (activePointers.size === 1) {
+    skyDragMoved = false;
+    skyPointerDownClient = { x: e.clientX, y: e.clientY };
     startDragFromPointer(e.pointerId);
   }
 });
@@ -2123,6 +2196,7 @@ dial.addEventListener('pointermove', e => {
   activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
   if (activePointers.size === 2) {
+    skyDragMoved = true; // a pinch is never a tap
     const [a, b] = [...activePointers.values()];
     const dist = Math.hypot(a.x - b.x, a.y - b.y);
     if (skyDrag && skyDrag.pinchDist) {
@@ -2134,6 +2208,9 @@ dial.addEventListener('pointermove', e => {
   }
 
   if (activePointers.size !== 1 || !skyDrag || !skyDrag.startVec) return;
+  if (skyPointerDownClient && Math.hypot(e.clientX - skyPointerDownClient.x, e.clientY - skyPointerDownClient.y) > 6) {
+    skyDragMoved = true;
+  }
   const pxPerLogical = logicalPxPerClientPx();
   const dx = (e.clientX - skyDrag.x) * pxPerLogical;
   const dy = (e.clientY - skyDrag.y) * pxPerLogical;
