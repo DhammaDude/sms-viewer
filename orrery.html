@@ -966,6 +966,10 @@ todayBtn.addEventListener('click', () => setDate(new Date()));
 // The case-ring pusher mirrors the settings-modal Play button -- same
 // underlying `playing` state, both kept in sync from one place.
 const playCrown = document.getElementById('play-crown');
+// Reset whenever Play (re)starts, so the very next tick measures its delta
+// from "now" rather than from a stale timestamp left over from before a
+// pause -- see tick() below.
+let lastTickTime = null;
 function togglePlaying() {
   playing = !playing;
   playBtn.textContent = playing ? '⏸ Pause' : '▶ Play';
@@ -973,14 +977,25 @@ function togglePlaying() {
   playCrown.textContent = playing ? '⏸' : '▶';
   playCrown.title = playCrown.ariaLabel = playing ? 'Pause' : 'Play';
   playCrown.classList.toggle('active', playing);
-  if (playing) tick(); else clearTimeout(playTimer);
+  if (playing) { lastTickTime = null; tick(); } else { clearTimeout(playTimer); }
 }
 playBtn.addEventListener('click', togglePlaying);
 playCrown.addEventListener('click', togglePlaying);
 
+// Advances currentDate by the ACTUAL real time elapsed since the last tick
+// (not a fixed 1/30s step) -- a fixed-step version drifts behind its
+// stated rate under any rendering/scheduling jitter, since every tick that
+// takes longer than 1000/30ms to run still only advances the sim by one
+// 1/30s worth of simulated time, permanently losing the difference. This
+// self-corrects instead: a slow frame just gets a bigger delta next time.
+// Capped at 100ms (~3 frames) so resuming from a backgrounded/throttled
+// tab doesn't dump a huge, disorienting jump into a single tick.
 function tick() {
   if (!playing) return;
-  currentDate = new Date(currentDate.getTime() + Number(speedSelect.value) / 30);
+  const now = performance.now();
+  const dtReal = lastTickTime === null ? (1000 / 30) : Math.min(now - lastTickTime, 100);
+  lastTickTime = now;
+  currentDate = new Date(currentDate.getTime() + Number(speedSelect.value) * (dtReal / 1000));
   dateInput.value = toLocalDateInputValue(currentDate);
   render();
   playTimer = setTimeout(tick, 1000 / 30);
