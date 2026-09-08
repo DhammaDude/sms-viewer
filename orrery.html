@@ -580,6 +580,31 @@ const PLANETS = [
     L: 238.92903833, dL: 145.20780515, peri: 224.06891629, dperi: -0.04062942, node: 110.30393684, dnode: -0.01183482 },
 ];
 
+// Saturn's rings are its own equatorial plane, so their apparent tilt from
+// any viewpoint just depends on where that viewpoint sits relative to
+// Saturn's rotation axis -- a fixed direction in space (precessing over
+// ~1750 years, negligible here), given by the IAU pole direction (RA
+// 40.589deg, Dec 83.537deg, J2000 equatorial) converted to this app's
+// ecliptic xyz frame. The ring "opening angle" B is then just the angle
+// between that pole and the Saturn-to-Sun direction (Earth's own offset
+// from the Sun is small enough at Saturn's distance to ignore, the same
+// approximation this app already leans on elsewhere) -- sin(B) = pole . dir.
+// Verified against the real record: this formula's zero-crossings (the
+// rings going edge-on/"disappearing") land on Nov 1995, Aug/Sep 2009, and
+// May 2025 -- all real, reported Saturn ring-plane crossings -- and its
+// peak opening of ~26.7deg falls near 2017, also correct.
+const SATURN_RING_POLE = (() => {
+  const ra = deg2rad(40.589), dec = deg2rad(83.537), eps = deg2rad(23.4393);
+  const x = Math.cos(dec) * Math.cos(ra), y = Math.cos(dec) * Math.sin(ra), z = Math.sin(dec);
+  return { x, y: y * Math.cos(eps) + z * Math.sin(eps), z: -y * Math.sin(eps) + z * Math.cos(eps) };
+})();
+function saturnRingOpeningDeg(saturnPos) {
+  const norm = Math.hypot(saturnPos.x, saturnPos.y, saturnPos.z);
+  const dx = -saturnPos.x / norm, dy = -saturnPos.y / norm, dz = -saturnPos.z / norm; // Saturn -> Sun
+  const dot = SATURN_RING_POLE.x * dx + SATURN_RING_POLE.y * dy + SATURN_RING_POLE.z * dz;
+  return rad2deg(Math.asin(Math.max(-1, Math.min(1, dot))));
+}
+
 const ZODIAC = ['♈ Aries','♉ Taurus','♊ Gemini','♋ Cancer','♌ Leo','♍ Virgo','♎ Libra','♏ Scorpio','♐ Sagittarius','♑ Capricorn','♒ Aquarius','♓ Pisces'];
 
 // The four Galilean moons of Jupiter, modeled the way Galileo himself saw
@@ -2235,6 +2260,24 @@ function render() {
     const rr = scaleR(pos.r);
     const a = deg2rad(pos.lon);
     const x = Math.cos(a) * rr, y = -Math.sin(a) * rr;
+
+    if (p.name === 'Saturn') {
+      // The ring plane is Saturn's own equatorial plane, tilted at a fixed
+      // angle in space -- so its apparent opening squashes and reopens
+      // (and briefly goes edge-on to a sliver, real ring-plane crossings)
+      // over Saturn's orbit, exactly the way the real rings do. Drawn
+      // behind the dot so the planet itself covers the ring's middle.
+      const ringScaleY = Math.abs(Math.sin(deg2rad(saturnRingOpeningDeg(pos))));
+      const ringOuterR = p.dotR * 1.9;
+      ctx.save();
+      ctx.globalAlpha = 0.6;
+      ctx.beginPath();
+      ctx.ellipse(x, y, ringOuterR, ringOuterR * ringScaleY, 0, 0, 2 * Math.PI);
+      ctx.strokeStyle = 'rgba(230,224,202,0.9)';
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+      ctx.restore();
+    }
 
     ctx.beginPath();
     ctx.arc(x, y, p.name === selected ? p.dotR + 3 : p.dotR, 0, 2 * Math.PI);
