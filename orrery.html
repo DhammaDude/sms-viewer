@@ -588,7 +588,6 @@ function starRadius(mag) { return Math.max(0.9, 3 - mag * 0.6); }
 // ─────────────────────────────────────────────────────────────────────────
 const THEMES = {
   brass: {
-    caseBg: '#120e08',
     zodiacAlt: ['rgba(201,165,74,0.16)', 'rgba(201,165,74,0.045)'],
     currentGlow: '#f2c34d',
     currentFill: 'rgba(242,195,77,0.55)',
@@ -613,7 +612,6 @@ const THEMES = {
     dateWindowText: '#211a10',
   },
   steel: {
-    caseBg: '#e4e7ea',
     zodiacAlt: ['rgba(60,70,80,0.09)', 'rgba(255,255,255,0.6)'],
     currentGlow: '#b8862c',
     currentFill: 'rgba(184,134,44,0.4)',
@@ -1520,9 +1518,12 @@ function render() {
 
   const th = theme();
 
+  // Left transparent rather than filled with a flat case color -- the page's
+  // own gradient backdrop (body's radial-gradient) shows through instead,
+  // so there's one continuous background behind the watch rather than a
+  // visible rectangular seam where a second, slightly different flat color
+  // used to meet it.
   ctx.clearRect(0, 0, LOGICAL_W, LOGICAL_H);
-  ctx.fillStyle = th.caseBg;
-  ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
 
   // polished case ring (outermost)
   drawFlutedRing(ctx, CX, CY, R_MAX + 52, R_MAX + 76, 140, th);
