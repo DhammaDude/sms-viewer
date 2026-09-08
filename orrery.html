@@ -25,6 +25,15 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Spectral:wght@400;500;600&display=swap">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  /* Mobile browsers flash their own blue tap-highlight rect on any
+     clickable element on touch-down (buttons, the dial canvas), and give
+     touch/mouse clicks the same blue :focus ring as keyboard nav -- both
+     read as a UI bug against this dark antique-watch palette. Keep a
+     themed focus ring for real keyboard navigation only. */
+  button, select, input, a, canvas, [role="img"], .planet-row { -webkit-tap-highlight-color: transparent; }
+  button, select, a, .planet-row { -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+  :focus { outline: none; }
+  :focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
 
   :root {
     --bg: #120e08;
