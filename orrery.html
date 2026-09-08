@@ -1677,6 +1677,43 @@ function drawSkyView(c, cx, cy, JD, positions, earth, th) {
   c.restore();
 }
 
+// Case ring, gear ring, brand text, and the shield plate (with its brushed-
+// metal texture) never change frame to frame -- nothing about them depends
+// on the date or Sky View, only on which of the two themes is active -- yet
+// render() was redrawing all of it (including re-running the noise texture's
+// hundreds of seeded-random strokes) on every single frame during Play or a
+// Sky View drag. Rendered once per theme onto an offscreen canvas instead,
+// and blitted with a single drawImage() thereafter; profiling showed these
+// were the two most expensive draws in the whole frame (about half of
+// render()'s total cost combined).
+const staticLayerCache = {};
+function getStaticChromeLayer(th) {
+  const cached = staticLayerCache[currentThemeName];
+  if (cached) return cached;
+  const off = document.createElement('canvas');
+  off.width = LOGICAL_W * DIAL_DPR;
+  off.height = LOGICAL_H * DIAL_DPR;
+  const octx = off.getContext('2d');
+  octx.scale(DIAL_DPR, DIAL_DPR);
+  drawFlutedRing(octx, CX, CY, R_MAX + 52, R_MAX + 76, 140, th);
+  drawGearRing(octx, CX, CY, R_MAX + 34, R_MAX + 48, 96, th);
+  drawArcText(octx, CX, CY, R_MAX + 41, 'ANTIKYTHERA', 90, 56, th.brandText, '600 12px Cinzel, serif');
+  drawArcText(octx, CX, CY, R_MAX + 41, 'CAL. Θ · IX', 270, 44, th.brandText, '600 11px Cinzel, serif');
+  return (staticLayerCache[currentThemeName] = off);
+}
+const staticShieldCache = {};
+function getStaticShieldLayer(th) {
+  const cached = staticShieldCache[currentThemeName];
+  if (cached) return cached;
+  const off = document.createElement('canvas');
+  off.width = LOGICAL_W * DIAL_DPR;
+  off.height = LOGICAL_H * DIAL_DPR;
+  const octx = off.getContext('2d');
+  octx.scale(DIAL_DPR, DIAL_DPR);
+  drawShieldPlate(octx, CX, CY, th);
+  return (staticShieldCache[currentThemeName] = off);
+}
+
 function render() {
   const JD = toJulianDate(currentDate);
   const T = (JD - 2451545.0) / 36525;
@@ -1697,18 +1734,14 @@ function render() {
   // used to meet it.
   ctx.clearRect(0, 0, LOGICAL_W, LOGICAL_H);
 
-  // polished case ring (outermost)
-  drawFlutedRing(ctx, CX, CY, R_MAX + 52, R_MAX + 76, 140, th);
+  // polished case ring, movement ring, and brand text -- all static per
+  // theme, cached as a single offscreen layer and blitted (see above).
+  ctx.drawImage(getStaticChromeLayer(th), 0, 0, LOGICAL_W, LOGICAL_H);
 
   // a real, ticking clock — hour/minute/second markers on the case ring's
   // own band, confined entirely to that band so nothing crosses the
   // planetary face itself
   drawTimeRing(ctx, CX, CY, th);
-
-  // movement ring — gear teeth plus engraved dial branding
-  drawGearRing(ctx, CX, CY, R_MAX + 34, R_MAX + 48, 96, th);
-  drawArcText(ctx, CX, CY, R_MAX + 41, 'ANTIKYTHERA', 90, 56, th.brandText, '600 12px Cinzel, serif');
-  drawArcText(ctx, CX, CY, R_MAX + 41, 'CAL. Θ · IX', 270, 44, th.brandText, '600 11px Cinzel, serif');
 
   // zodiac ring — two alternating tones, current sign glowing
   ctx.save();
@@ -1875,8 +1908,9 @@ function render() {
   // dial's own case curve (drawn on this same canvas so the seam is
   // pixel-exact), each sitting in its own lobe: Metonic (right), Moon
   // Phase (middle, largest), Day-Date (left), each placed radially out
-  // from the case along its lobe's own angle.
-  drawShieldPlate(ctx, CX, CY, th);
+  // from the case along its lobe's own angle. Static per theme, so also
+  // cached and blitted rather than redrawn (see getStaticShieldLayer above).
+  ctx.drawImage(getStaticShieldLayer(th), 0, 0, LOGICAL_W, LOGICAL_H);
 
   const moonPhase = moonPhaseAt(currentDate);
   const eclipseType = eclipseTypeAt(currentDate, sunGeoLon);
