@@ -634,58 +634,29 @@ function galileanDepth(moon, JD) {
 // (it isn't part of the resonance) and so is the Io-Ganymede pair (not
 // a resonant pair itself -- just a byproduct of the other two).
 const RESONANT_PAIRS = [[0, 1], [1, 2]]; // Io-Europa, Europa-Ganymede
-const CONJUNCTION_THRESHOLD_DEG = 4;
-
-// A real alignment window is often only a couple of REAL SECONDS wide at
-// fast playback speeds (e.g. 1 hour/sec -- Io and Europa's relative motion
-// alone chews through the whole +/-4deg window in well under a simulated
-// day), too brief for a pulse to visibly rise and fall in. So rather than
-// a flat on/off flag, each pair tracks the closest approach (smallest
-// separation) seen during its current pass through the window -- that
-// moment becomes the pulse's PEAK, placed HALF_WINDOW_MS in the future
-// from whenever it was last improved upon (still-improving samples keep
-// pushing the peak later, so a slow real-time approach just sustains at
-// the peak rather than getting cut off). The result is a real-wall-clock
-// triangular envelope, equal HALF_WINDOW_MS buffer rising into the peak
-// and falling out of it, centered on the true closest approach regardless
-// of how few (or many) frames actually landed inside the alignment window.
-const HALF_WINDOW_MS = 550;
+const CONJUNCTION_THRESHOLD_DEG = 4; // the alarm/quick-jump's stricter "is this actually a conjunction" cutoff
 
 function moonAngleDeg(moon, JD) { return normDeg(galileanCycles(moon, JD) * 360); }
 
-let pairEpisode = {}; // "i-j" -> { bestSep, peakAt } -- peakAt is a wall-clock ms timestamp
-function updateGalileanResonance(JD) {
-  const now = performance.now();
-  RESONANT_PAIRS.forEach(([i, j]) => {
-    const key = i + '-' + j;
-    const ep = pairEpisode[key] || (pairEpisode[key] = { bestSep: Infinity, peakAt: -Infinity });
-    const sep = angleSeparation(moonAngleDeg(GALILEAN_MOONS[i], JD), moonAngleDeg(GALILEAN_MOONS[j], JD));
-    if (sep < CONJUNCTION_THRESHOLD_DEG && sep < ep.bestSep) {
-      ep.bestSep = sep;
-      ep.peakAt = now + HALF_WINDOW_MS;
-    } else if (now > ep.peakAt + HALF_WINDOW_MS) {
-      // Fully decayed and not currently improving -- clear it so the next
-      // approach starts its own fresh peak search instead of comparing
-      // against a stale minimum from the last conjunction.
-      ep.bestSep = Infinity;
-    }
-  });
-}
-function pairPulseIntensity(key) {
-  const ep = pairEpisode[key];
-  if (!ep) return 0;
-  const dt = Math.abs(performance.now() - ep.peakAt);
-  return dt > HALF_WINDOW_MS ? 0 : 1 - dt / HALF_WINDOW_MS;
-}
-function heldGalileanPairs() {
-  return RESONANT_PAIRS.filter(([i, j]) => pairPulseIntensity(i + '-' + j) > 0);
+// The visual pulse is a direct function of how close a pair currently is,
+// not an on/off flag -- it should read as a crescendo: faint as the moons
+// approach each other, brightest exactly at closest approach, fading again
+// as they separate. CONJUNCTION_PULSE_RANGE_DEG is deliberately much wider
+// than CONJUNCTION_THRESHOLD_DEG so there's real angular room for that
+// build and decline to actually be visible, rather than the pulse staying
+// invisible right up until the strict alarm threshold and then snapping on.
+const CONJUNCTION_PULSE_RANGE_DEG = 25;
+
+function pairPulseIntensity(i, j, JD) {
+  const sep = angleSeparation(moonAngleDeg(GALILEAN_MOONS[i], JD), moonAngleDeg(GALILEAN_MOONS[j], JD));
+  return Math.max(0, 1 - sep / CONJUNCTION_PULSE_RANGE_DEG);
 }
 // A moon can belong to two resonant pairs (Europa sits in both) -- its
-// pulse takes whichever pair's envelope is currently stronger.
-function moonPulseIntensity(idx) {
+// pulse takes whichever pair is currently closer.
+function moonPulseIntensity(idx, JD) {
   return RESONANT_PAIRS
     .filter(([i, j]) => i === idx || j === idx)
-    .reduce((max, [i, j]) => Math.max(max, pairPulseIntensity(i + '-' + j)), 0);
+    .reduce((max, [i, j]) => Math.max(max, pairPulseIntensity(i, j, JD)), 0);
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -1770,11 +1741,10 @@ function drawGalileanStrip(c, cx, cy, jupiterPos, JD, th) {
     c.fillStyle = m.color; c.fill();
     c.strokeStyle = th.metalDeepest; c.lineWidth = 0.6; c.stroke();
 
-    // Glow sized by the pulse envelope itself (see updateGalileanResonance/
-    // pairPulseIntensity) -- it grows toward its peak at the moment of
-    // closest approach, then shrinks back down, rather than snapping to a
-    // fixed size for as long as the pair counts as "aligned."
-    const pulse = moonPulseIntensity(idx);
+    // Glow sized by live angular closeness (see moonPulseIntensity above)
+    // -- it grows toward its peak as the moons approach, then shrinks back
+    // down as they separate, rather than snapping to a fixed size.
+    const pulse = moonPulseIntensity(idx, JD);
     if (pulse > 0) {
       c.beginPath(); c.arc(x, y, m.dotR + 1.5 + pulse * 4, 0, 2 * Math.PI);
       c.strokeStyle = `rgba(255,244,214,${(0.2 + pulse * 0.65).toFixed(3)})`;
@@ -2013,8 +1983,8 @@ function getStaticShieldLayer(th) {
 }
 
 // A miniature top-down orrery of its own, centered on Jupiter: real orbital
-// angle (galileanCycles*360, the same angle updateGalileanResonance already
-// uses) rather than the edge-on wobble drawGalileanStrip draws along
+// angle (galileanCycles*360, the same angle moonAngleDeg already uses)
+// rather than the edge-on wobble drawGalileanStrip draws along
 // Jupiter's own orbit line -- there's room here to actually spread the
 // moons around a circle instead of compressing them into a sideways strip.
 // Drawn under a translate+scale so the caller can morph it in from wherever
@@ -2063,7 +2033,7 @@ function drawJovianView(c, originX, originY, scale, alpha, JD, th) {
     c.fillStyle = m.color; c.fill();
     c.strokeStyle = th.metalDeepest; c.lineWidth = 1; c.stroke();
 
-    const pulse = moonPulseIntensity(idx);
+    const pulse = moonPulseIntensity(idx, JD);
     if (pulse > 0) {
       c.beginPath(); c.arc(x, y, dotR + 3 + pulse * 7, 0, 2 * Math.PI);
       c.strokeStyle = `rgba(255,244,214,${(0.2 + pulse * 0.65).toFixed(3)})`;
@@ -2282,11 +2252,8 @@ function render() {
   });
   ctx.restore();
 
-  updateGalileanResonance(JD);
   drawGalileanStrip(ctx, CX, CY, positions['Jupiter'], JD, th);
   ctx.restore();
-  } else {
-  updateGalileanResonance(JD);
   }
 
   if (jt > 0) {
