@@ -270,13 +270,27 @@
   }
   #location-modal-hint { font-size: 12px; color: var(--muted); line-height: 1.5; }
   #location-modal-fields { display: flex; gap: 10px; }
-  #location-modal-fields label { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--muted); }
-  #location-modal-fields input {
+  #location-modal-fields label, #range-modal-fields label { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--muted); }
+  #location-modal-fields input, #range-modal-fields input {
     width: 100%; min-width: 0; box-sizing: border-box;
     background: var(--input-bg); border: 1px solid var(--border); color: var(--parchment);
     padding: 8px; border-radius: 6px; font-size: 13px; font-family: var(--font-body);
   }
-  #location-modal-error { font-size: 12px; color: var(--danger); min-height: 1.2em; }
+  #location-modal-error, .modal-error { font-size: 12px; color: var(--danger); min-height: 1.2em; }
+
+  /* ── Export Range modal ── */
+  #range-modal {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7);
+    z-index: 300; align-items: center; justify-content: center; padding: 16px;
+  }
+  #range-modal-box {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    width: min(420px, 100%); display: flex; flex-direction: column;
+    padding: 14px; gap: 10px;
+  }
+  #range-modal-hint { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  #range-modal-fields { display: flex; flex-direction: column; gap: 10px; }
+  #range-modal-fields .row { display: flex; gap: 10px; }
 
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -413,6 +427,28 @@
     <div id="json-modal-actions">
       <button class="ctl" id="location-retry-device">Try Device Location Again</button>
       <button class="ctl" id="location-modal-use">Use This Location</button>
+    </div>
+  </div>
+</div>
+
+<div id="range-modal">
+  <div id="range-modal-box">
+    <div class="modal-head">
+      <span class="modal-title">Export Range</span>
+      <button class="ctl" id="range-modal-close">✕</button>
+    </div>
+    <div id="range-modal-hint">Exports a time series across a date range, one computed snapshot per step.</div>
+    <div id="range-modal-fields">
+      <div class="row">
+        <label>Start date<input type="date" id="range-start-input" /></label>
+        <label>End date<input type="date" id="range-end-input" /></label>
+      </div>
+      <label>Step size (days)<input type="number" id="range-step-input" min="1" step="1" value="1" /></label>
+    </div>
+    <div class="modal-error" id="range-modal-error"></div>
+    <div id="json-modal-actions">
+      <button class="ctl" id="range-modal-cancel">Cancel</button>
+      <button class="ctl" id="range-modal-export">Export</button>
     </div>
   </div>
 </div>
@@ -1099,23 +1135,38 @@ exportBtn.addEventListener('click', () => {
   showJSONModal(snapshotData(currentDate), `antikythera-${toLocalDateInputValue(currentDate)}.json`);
 });
 
+// window.prompt()/alert() are unreliable in embedded/sandboxed webviews --
+// same reason Sky View's location entry and JSON export use in-page modals
+// instead -- so this needs one too rather than the three prompt() calls
+// (plus alert() for errors) it used to be.
+const rangeModal = document.getElementById('range-modal');
+const rangeStartInput = document.getElementById('range-start-input');
+const rangeEndInput = document.getElementById('range-end-input');
+const rangeStepInput = document.getElementById('range-step-input');
+const rangeModalError = document.getElementById('range-modal-error');
+
 exportRangeBtn.addEventListener('click', () => {
   const today = toLocalDateInputValue(currentDate);
-  const startStr = prompt('Start date (YYYY-MM-DD):', today);
-  if (!startStr) return;
-  const endStr = prompt('End date (YYYY-MM-DD):', today);
-  if (!endStr) return;
-  const stepStr = prompt('Step size, in days:', '1');
-  if (!stepStr) return;
+  rangeStartInput.value = today;
+  rangeEndInput.value = today;
+  rangeStepInput.value = '1';
+  rangeModalError.textContent = '';
+  rangeModal.style.display = 'flex';
+});
+document.getElementById('range-modal-close').addEventListener('click', () => { rangeModal.style.display = 'none'; });
+document.getElementById('range-modal-cancel').addEventListener('click', () => { rangeModal.style.display = 'none'; });
+document.getElementById('range-modal-export').addEventListener('click', () => {
+  const startStr = rangeStartInput.value, endStr = rangeEndInput.value;
+  if (!startStr || !endStr) { rangeModalError.textContent = 'Enter both a start and end date.'; return; }
 
   const start = new Date(startStr + 'T00:00:00Z');
   const end = new Date(endStr + 'T00:00:00Z');
-  const step = Math.max(1, parseInt(stepStr, 10) || 1);
-  if (isNaN(start) || isNaN(end) || end < start) { alert('Invalid date range.'); return; }
+  const step = Math.max(1, parseInt(rangeStepInput.value, 10) || 1);
+  if (isNaN(start) || isNaN(end) || end < start) { rangeModalError.textContent = 'End date must be on or after the start date.'; return; }
 
   const points = Math.floor((end - start) / 86400000 / step) + 1;
   if (points > 5000) {
-    alert(`That range would produce ${points.toLocaleString()} points — narrow the range or increase the step (max 5000).`);
+    rangeModalError.textContent = `That range would produce ${points.toLocaleString()} points — narrow the range or increase the step (max 5000).`;
     return;
   }
 
@@ -1123,6 +1174,7 @@ exportRangeBtn.addEventListener('click', () => {
   for (let t = start.getTime(); t <= end.getTime(); t += step * 86400000) {
     series.push(snapshotData(new Date(t)));
   }
+  rangeModal.style.display = 'none';
   showJSONModal(series, `antikythera-series-${startStr}_to_${endStr}.json`);
 });
 
