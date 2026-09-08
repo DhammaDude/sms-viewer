@@ -152,8 +152,8 @@
      own live caption underneath, nothing else. ── */
   #main {
     position: fixed; inset: 0; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 10px;
-    padding: 20px; overflow: auto;
+    align-items: center; justify-content: center; gap: 6px;
+    padding: 10px; overflow: auto;
   }
   #dial-wrap { position: relative; max-width: 100%; max-height: 100%; }
   /* Aspect-ratio frame keeps the crown button's percentage-based position
@@ -164,7 +164,7 @@
      the live caption never gets pushed below the fold on short viewports. */
   #dial-frame {
     position: relative;
-    width: min(940px, calc(100vw - 40px), (100vh - 90px) * (940 / 1130));
+    width: min(940px, calc(100vw - 20px), (100vh - 60px) * (940 / 1130));
     aspect-ratio: 940 / 1130;
   }
   canvas#dial { position: absolute; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; }
@@ -220,7 +220,7 @@
   #almanac-line { font-family: var(--font-heading); font-style: italic; font-size: 12px; color: var(--muted); text-align: center; margin-top: 2px; }
 
   @media (max-width: 820px) {
-    #main { padding: 12px; }
+    #main { padding: 8px; }
   }
 
   /* ── Settings modal -- everything that used to be a permanent sidebar
