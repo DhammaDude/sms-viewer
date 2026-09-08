@@ -332,6 +332,9 @@
           <button class="ctl" id="fullscreen-toggle" title="Fill the screen with the dial">Fullscreen</button>
           <button class="ctl" id="theme-toggle" title="Switch case material">Steel</button>
         </div>
+        <div class="row" style="gap: 6px;">
+          <button class="ctl" id="change-location-btn" title="Change the location Sky View uses">Change Location</button>
+        </div>
       </div>
 
       <div class="controls">
@@ -2487,6 +2490,9 @@ function tryDeviceLocation() {
 }
 
 const locationModalError = document.getElementById('location-modal-error');
+const locationModalHint = document.getElementById('location-modal-hint');
+const LOCATION_MODAL_FAILURE_HINT = "Couldn't use your device location automatically. Enter it manually so Sky View knows what's above your horizon.";
+const LOCATION_MODAL_CHANGE_HINT = "Update the location Sky View uses for what's above your horizon.";
 
 // Leamington, Ontario, Canada -- used to pre-fill the manual-entry fields
 // when device location isn't available, so there's a sensible default to
@@ -2494,11 +2500,27 @@ const locationModalError = document.getElementById('location-modal-error');
 const DEFAULT_LOCATION = { lat: 42.0533, lon: -82.5992 };
 
 function showLocationModal(message) {
+  locationModalHint.textContent = LOCATION_MODAL_FAILURE_HINT;
   locationLatInput.value = DEFAULT_LOCATION.lat;
   locationLonInput.value = DEFAULT_LOCATION.lon;
   locationModalError.textContent = message || '';
   locationModal.style.display = 'flex';
 }
+
+// Opened voluntarily from Settings (not a fallback from a failed lookup):
+// pre-fills the CURRENT location if one is already set, and updates it live
+// -- there was previously no way to change location once set, short of
+// clearing browser storage outside the app entirely, which broke anyone
+// who travels.
+function openChangeLocationModal() {
+  locationModalHint.textContent = LOCATION_MODAL_CHANGE_HINT;
+  locationLatInput.value = observerLoc ? observerLoc.lat : DEFAULT_LOCATION.lat;
+  locationLonInput.value = observerLoc ? observerLoc.lon : DEFAULT_LOCATION.lon;
+  locationModalError.textContent = '';
+  locationOnReady = () => render();
+  locationModal.style.display = 'flex';
+}
+document.getElementById('change-location-btn').addEventListener('click', openChangeLocationModal);
 
 document.getElementById('location-modal-close').addEventListener('click', () => {
   locationModal.style.display = 'none';
