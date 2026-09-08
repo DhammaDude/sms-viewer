@@ -760,8 +760,13 @@ function nextPhaseDate(fromDate, targetPhase) {
 }
 
 // Mean longitude of the Moon's ascending node (regresses ~18.6yr / 360deg).
+// The constant term (125.1228) is defined against days since 2000 Jan 0.0 UT
+// -- i.e. 2451543.5, a day and a half before J2000.0 itself (2451545.0) --
+// not against J2000.0 the way the rest of this file's epoch, so subtracting
+// 2451545.0 here as elsewhere would silently offset every node longitude by
+// 1.5 days' worth of regression (~0.08deg).
 function moonNodeLongitude(date) {
-  const D = toJulianDate(date) - 2451545.0;
+  const D = toJulianDate(date) - 2451543.5;
   return normDeg(125.1228 - 0.0529538083 * D);
 }
 
