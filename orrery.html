@@ -462,32 +462,40 @@
 // heliocentric ecliptic Keplerian elements, valid ~1800-2050.
 // a: AU, e: eccentricity, I/L/peri/node: degrees.
 // ─────────────────────────────────────────────────────────────────────────
+// dotR: each planet's dial marker radius, drawn from its real equatorial
+// diameter (Mercury 4,879km up to Jupiter 139,820km -- a ~29x range) but
+// compressed through sqrt(diameter), the same trick this file already
+// uses for orbital distance, then mapped to a 7-12.5px range. A true
+// linear scale would make Jupiter dwarf its own orbit ring at this dial's
+// size while Mercury and Pluto shrank enough to make their glyph illegible
+// -- sqrt plus a 7px floor keeps Jupiter and Saturn reading clearly larger
+// than the rest without the smallest bodies losing their symbol.
 const PLANETS = [
-  { name: 'Mercury', symbol: '☿', color: '#b7b0a2',
+  { name: 'Mercury', symbol: '☿', color: '#b7b0a2', dotR: 7.4,
     a: 0.38709927, da: 0.00000037, e: 0.20563593, de: 0.00001906, I: 7.00497902, dI: -0.00594749,
     L: 252.25032350, dL: 149472.67411175, peri: 77.45779628, dperi: 0.16047689, node: 48.33076593, dnode: -0.12534081 },
-  { name: 'Venus', symbol: '♀', color: '#e8c99b',
+  { name: 'Venus', symbol: '♀', color: '#e8c99b', dotR: 8,
     a: 0.72333566, da: 0.00000390, e: 0.00677672, de: -0.00004107, I: 3.39467605, dI: -0.00078890,
     L: 181.97909950, dL: 58517.81538729, peri: 131.60246718, dperi: 0.00268329, node: 76.67984255, dnode: -0.27769418 },
-  { name: 'Earth', symbol: '⊕', color: '#5b93d6',
+  { name: 'Earth', symbol: '⊕', color: '#5b93d6', dotR: 8.1,
     a: 1.00000261, da: 0.00000562, e: 0.01671123, de: -0.00004392, I: -0.00001531, dI: -0.01294668,
     L: 100.46457166, dL: 35999.37244981, peri: 102.93768193, dperi: 0.32327364, node: 0.0, dnode: 0.0 },
-  { name: 'Mars', symbol: '♂', color: '#c1502e',
+  { name: 'Mars', symbol: '♂', color: '#c1502e', dotR: 7.6,
     a: 1.52371034, da: 0.00001847, e: 0.09339410, de: 0.00007882, I: 1.84969142, dI: -0.00813131,
     L: -4.55343205, dL: 19140.30268499, peri: -23.94362959, dperi: 0.44441088, node: 49.55953891, dnode: -0.29257343 },
-  { name: 'Jupiter', symbol: '♃', color: '#d9a066',
+  { name: 'Jupiter', symbol: '♃', color: '#d9a066', dotR: 12.5,
     a: 5.20288700, da: -0.00011607, e: 0.04838624, de: -0.00013253, I: 1.30439695, dI: -0.00183714,
     L: 34.39644051, dL: 3034.74612775, peri: 14.72847983, dperi: 0.21252668, node: 100.47390909, dnode: 0.20469106 },
-  { name: 'Saturn', symbol: '♄', color: '#e0c68c',
+  { name: 'Saturn', symbol: '♄', color: '#e0c68c', dotR: 12,
     a: 9.53667594, da: -0.00125060, e: 0.05386179, de: -0.00050991, I: 2.48599187, dI: 0.00193609,
     L: 49.95424423, dL: 1222.49362201, peri: 92.59887831, dperi: -0.41897216, node: 113.66242448, dnode: -0.28867794 },
-  { name: 'Uranus', symbol: '⛢', color: '#7fd9d9',
+  { name: 'Uranus', symbol: '⛢', color: '#7fd9d9', dotR: 10,
     a: 19.18916464, da: -0.00196176, e: 0.04725744, de: -0.00004397, I: 0.77263783, dI: -0.00242939,
     L: 313.23810451, dL: 428.48202785, peri: 170.95427630, dperi: 0.40805281, node: 74.01692503, dnode: 0.04240589 },
-  { name: 'Neptune', symbol: '♆', color: '#4f6fd1',
+  { name: 'Neptune', symbol: '♆', color: '#4f6fd1', dotR: 9.9,
     a: 30.06992276, da: 0.00026291, e: 0.00859048, de: 0.00005105, I: 1.77004347, dI: 0.00035372,
     L: -55.12002969, dL: 218.45945325, peri: 44.96476227, dperi: -0.32241464, node: 131.78422574, dnode: -0.00508664 },
-  { name: 'Pluto', symbol: '♇', color: '#a98cc9',
+  { name: 'Pluto', symbol: '♇', color: '#a98cc9', dotR: 7,
     a: 39.48211675, da: -0.00031596, e: 0.24882730, de: 0.00005170, I: 17.14001206, dI: 0.00004818,
     L: 238.92903833, dL: 145.20780515, peri: 224.06891629, dperi: -0.04062942, node: 110.30393684, dnode: -0.01183482 },
 ];
@@ -1897,7 +1905,7 @@ function render() {
     const x = Math.cos(a) * rr, y = -Math.sin(a) * rr;
 
     ctx.beginPath();
-    ctx.arc(x, y, p.name === selected ? 11 : 8, 0, 2 * Math.PI);
+    ctx.arc(x, y, p.name === selected ? p.dotR + 3 : p.dotR, 0, 2 * Math.PI);
     ctx.fillStyle = p.color;
     ctx.fill();
     ctx.strokeStyle = p.name === selected ? th.selectedStroke : th.defaultStroke;
