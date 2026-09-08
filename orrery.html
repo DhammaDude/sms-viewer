@@ -160,12 +160,13 @@
   }
   canvas#dial { position: absolute; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; }
 
-  /* A small brass pusher mounted right on the case ring, standing in for
-     the "Sky View" toggle that used to live in the toolbar -- positioned
-     as a percentage of the dial frame (not the canvas's own pixel space)
-     so it tracks the drawn case ring at every zoom level. */
-  #sky-view-crown {
-    position: absolute; left: 95.7%; top: 38%; transform: translate(-50%, -50%);
+  /* Small brass pushers mounted right on the case ring -- Sky View on the
+     right, Play/Pause mirrored on the left -- standing in for toolbar
+     buttons that used to live off the dial. Positioned as a percentage of
+     the dial frame (not the canvas's own pixel space) so they track the
+     drawn case ring at every zoom level. */
+  #sky-view-crown, #play-crown {
+    position: absolute; top: 38%; transform: translate(-50%, -50%);
     width: 7.2%; aspect-ratio: 1;
     border-radius: 50%; cursor: pointer;
     background: linear-gradient(155deg, #d8b45e, #8a6a35 60%, #4a3717);
@@ -174,11 +175,13 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 15px; line-height: 1;
   }
-  #sky-view-crown.active {
+  #sky-view-crown { left: 95.7%; }
+  #play-crown { left: 4.3%; font-size: 13px; }
+  #sky-view-crown.active, #play-crown.active {
     background: linear-gradient(155deg, #f4efe0, #c9a54a 55%, #8a6a35);
     box-shadow: 0 0 8px rgba(244,239,224,.6), inset 0 1px 1px rgba(255,255,255,.7);
   }
-  :root[data-theme="light"] #sky-view-crown { color: #f8f9fa; }
+  :root[data-theme="light"] #sky-view-crown, :root[data-theme="light"] #play-crown { color: #f8f9fa; }
 
   /* "Fullscreen" is a CSS-only overlay (not the browser Fullscreen API,
      which needs a permission an embedded preview may not grant) -- it fixes
@@ -279,6 +282,7 @@
   <div id="dial-wrap">
     <div id="dial-frame">
       <canvas id="dial" width="940" height="1130" role="img" aria-label="Orrery dial showing the positions of the nine planets, moon phase, day-date, and Metonic cycle complications."></canvas>
+      <button id="play-crown" title="Play" aria-label="Play">▶</button>
       <button id="sky-view-crown" title="Show the sky as seen from your location" aria-label="Show the sky as seen from your location">✦</button>
     </div>
   </div>
@@ -320,10 +324,10 @@
           <div class="row">
             <button class="ctl" id="play-btn">▶ Play</button>
             <select id="speed-select">
-              <option value="86400000">1 day / sec</option>
+              <option value="86400000" selected>1 day / sec</option>
               <option value="604800000">1 week / sec</option>
               <option value="2629800000">1 month / sec</option>
-              <option value="31557600000" selected>1 year / sec</option>
+              <option value="31557600000">1 year / sec</option>
               <option value="315576000000">10 years / sec</option>
               <option value="3155760000000">100 years / sec</option>
             </select>
@@ -893,12 +897,20 @@ dateInput.addEventListener('change', () => {
 });
 todayBtn.addEventListener('click', () => setDate(new Date()));
 
-playBtn.addEventListener('click', () => {
+// The case-ring pusher mirrors the settings-modal Play button -- same
+// underlying `playing` state, both kept in sync from one place.
+const playCrown = document.getElementById('play-crown');
+function togglePlaying() {
   playing = !playing;
   playBtn.textContent = playing ? '⏸ Pause' : '▶ Play';
   playBtn.classList.toggle('active', playing);
+  playCrown.textContent = playing ? '⏸' : '▶';
+  playCrown.title = playCrown.ariaLabel = playing ? 'Pause' : 'Play';
+  playCrown.classList.toggle('active', playing);
   if (playing) tick(); else clearTimeout(playTimer);
-});
+}
+playBtn.addEventListener('click', togglePlaying);
+playCrown.addEventListener('click', togglePlaying);
 
 function tick() {
   if (!playing) return;
