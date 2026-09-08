@@ -567,6 +567,16 @@ const STARS = [
   ['Fomalhaut', 22.96, -29.62, 1.16],
   ['Deneb', 20.69, 45.28, 1.25],
   ['Regulus', 10.14, 11.97, 1.35],
+  ['Achernar', 1.63, -57.24, 0.46],
+  ['Hadar', 14.06, -60.37, 0.61],
+  ['Acrux', 12.44, -63.10, 0.77],
+  ['Polaris', 2.53, 89.26, 1.98],
+  ['Castor', 7.58, 31.89, 1.58],
+  ['Bellatrix', 5.42, 6.35, 1.64],
+  ['Shaula', 17.56, -37.10, 1.62],
+  ['Alnilam', 5.60, -1.20, 1.69],
+  ['Dubhe', 11.06, 61.75, 1.79],
+  ['Alkaid', 13.79, 49.31, 1.86],
 ];
 
 const OBLIQUITY_DEG = 23.4393; // Earth's axial tilt, J2000 (treated as constant, same precision tier as the rest of this app)
@@ -711,10 +721,10 @@ function altAzToVec(azDeg, altDeg) {
 // "right" and "up" from any given center, including at the zenith itself.
 function basisAt(c) {
   const worldUp = { x: 0, y: 0, z: 1 };
-  let right = crossVec(worldUp, c);
+  let right = crossVec(c, worldUp);
   const rightLen = Math.hypot(right.x, right.y, right.z);
   right = rightLen < 1e-6 ? { x: 1, y: 0, z: 0 } : { x: right.x / rightLen, y: right.y / rightLen, z: right.z / rightLen };
-  const up2 = crossVec(c, right);
+  const up2 = crossVec(right, c);
   return { right, up2 };
 }
 
