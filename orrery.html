@@ -407,8 +407,9 @@
             <label><input type="checkbox" id="alarm-saturn" /> Saturn visible in night sky</label>
             <label><input type="checkbox" id="alarm-solar-eclipse" /> Solar eclipse</label>
             <label><input type="checkbox" id="alarm-lunar-eclipse" /> Lunar eclipse</label>
+            <label><input type="checkbox" id="alarm-galilean-conjunction" /> Galilean moon conjunction</label>
           </div>
-          <div id="alarm-hint">Chimes a bell three times, checked against real time and your location -- leave this tab open to be alerted.</div>
+          <div id="alarm-hint">Chimes a bell three times at local midday, the day before each event -- leave this tab open to be alerted. Needs your location.</div>
         </div>
       </div>
 
@@ -3060,20 +3061,27 @@ audioVolumeInput.addEventListener('input', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────
-// Alarms -- Jupiter/Saturn visible in the night sky, solar/lunar eclipse.
-// Checked against the REAL current moment (device clock), not the
-// orrery's own simulated currentDate, since the point is alerting someone
-// to what's actually happening outside right now; the app just needs to
-// stay open in a tab for the periodic check to keep running.
+// Alarms -- Jupiter/Saturn visible in the night sky, solar/lunar eclipse,
+// Galilean moon conjunction. Rather than chiming the instant a condition
+// becomes true (which could be the middle of the night), each alarm looks
+// ahead for the event's next occurrence and fires at local apparent solar
+// noon on whichever day is closest to, but no later than, that occurrence
+// -- a same-day heads-up ("this is happening tonight/today") delivered at
+// a reasonable hour, timed to the observer's own longitude rather than a
+// generic clock-noon. All of this runs against the REAL device clock, not
+// the orrery's own simulated currentDate -- the point is alerting someone
+// to what's actually about to happen outside; the app just needs to stay
+// open in a tab for the periodic check to keep running.
 // ─────────────────────────────────────────────────────────────────────────
 const ALARM_DEFS = [
-  { key: 'jupiter', label: 'Jupiter is visible in the night sky', emoji: '♃', needsLocation: true },
-  { key: 'saturn', label: 'Saturn is visible in the night sky', emoji: '♄', needsLocation: true },
-  { key: 'solarEclipse', label: 'A solar eclipse is happening now', emoji: '☉', needsLocation: false },
-  { key: 'lunarEclipse', label: 'A lunar eclipse is happening now', emoji: '☾', needsLocation: false },
+  { key: 'jupiter', label: 'Jupiter will be visible in tonight’s night sky', emoji: '♃' },
+  { key: 'saturn', label: 'Saturn will be visible in tonight’s night sky', emoji: '♄' },
+  { key: 'solarEclipse', label: 'A solar eclipse is coming', emoji: '☉' },
+  { key: 'lunarEclipse', label: 'A lunar eclipse is coming', emoji: '☾' },
+  { key: 'galileanConjunction', label: 'Two Galilean moons will be in conjunction', emoji: '✦' },
 ];
 
-let alarms = { jupiter: false, saturn: false, solarEclipse: false, lunarEclipse: false };
+let alarms = { jupiter: false, saturn: false, solarEclipse: false, lunarEclipse: false, galileanConjunction: false };
 try { alarms = Object.assign(alarms, JSON.parse(localStorage.getItem('antikythera-alarms') || '{}')); } catch (e) { /* keep defaults */ }
 
 const alarmCheckboxes = {
@@ -3081,19 +3089,25 @@ const alarmCheckboxes = {
   saturn: document.getElementById('alarm-saturn'),
   solarEclipse: document.getElementById('alarm-solar-eclipse'),
   lunarEclipse: document.getElementById('alarm-lunar-eclipse'),
+  galileanConjunction: document.getElementById('alarm-galilean-conjunction'),
 };
 Object.keys(alarmCheckboxes).forEach(key => { alarmCheckboxes[key].checked = !!alarms[key]; });
 
-Object.keys(alarmCheckboxes).forEach(key => {
-  alarmCheckboxes[key].addEventListener('change', e => {
-    alarms[key] = e.target.checked;
-    localStorage.setItem('antikythera-alarms', JSON.stringify(alarms));
-    getAudioCtx(); // unlock audio on this gesture too, in case the volume panel was never opened
-    const def = ALARM_DEFS.find(a => a.key === key);
-    if (e.target.checked && def.needsLocation && !observerLoc) ensureLocation(() => {});
-    primeAlarmState(); // re-baseline so an alarm that's already true when enabled doesn't fire immediately
-  });
-});
+// Local apparent solar noon, approximated from longitude alone (ignoring
+// the equation of time's real but small -- up to ~16 minute -- wobble),
+// the same "textbook approximate" precision tier the rest of this app's
+// astronomy already sits at. East-positive longitude means local time
+// runs ahead of UTC, so local noon falls at UTC 12:00 minus that offset.
+function localSolarNoonUTCms(anchorDate, lonDeg) {
+  return Date.UTC(anchorDate.getUTCFullYear(), anchorDate.getUTCMonth(), anchorDate.getUTCDate(), 12) - (lonDeg / 15) * 3600000;
+}
+// The most recent solar noon at or before targetMs -- "the soonest midday
+// before the event."
+function solarNoonAtOrBefore(targetMs, lonDeg) {
+  let noon = localSolarNoonUTCms(new Date(targetMs), lonDeg);
+  if (noon > targetMs) noon = localSolarNoonUTCms(new Date(targetMs - 86400000), lonDeg);
+  return noon;
+}
 
 // Real Alt/Az for Jupiter/Saturn and the eclipse-season check, evaluated at
 // an arbitrary real-world date -- independent of the orrery's own
@@ -3126,9 +3140,79 @@ function computeAlarmConditions(date) {
   };
 }
 
-let alarmLastState = {};
-function primeAlarmState() { alarmLastState = computeAlarmConditions(new Date()); }
-primeAlarmState();
+function anyGalileanConjunctionAt(date) {
+  const JD = toJulianDate(date);
+  return GALILEAN_PAIRS.some(([i, j]) => angleSeparation(moonAngleDeg(GALILEAN_MOONS[i], JD), moonAngleDeg(GALILEAN_MOONS[j], JD)) < CONJUNCTION_THRESHOLD_DEG);
+}
+
+// Forward search for the next rising edge of a given alarm's condition,
+// starting just after `fromDate`. Coarse fixed-step scans rather than a
+// root-find -- plenty of resolution for picking which calendar day an
+// event falls on, which is all the midday-before scheduling above needs.
+// Capped search horizons keep a condition that (for whatever reason) never
+// recurs from hanging the scan.
+function searchNextEventStart(key, fromDate) {
+  if (key === 'jupiter' || key === 'saturn') {
+    if (!observerLoc) return null;
+    const stepMs = 15 * 60000;
+    let prev = computeAlarmConditions(fromDate)[key];
+    for (let i = 1; i <= 14 * 24 * 4; i++) {
+      const t = new Date(fromDate.getTime() + i * stepMs);
+      const on = computeAlarmConditions(t)[key];
+      if (on && !prev) return t.getTime();
+      prev = on;
+    }
+    return null;
+  }
+  if (key === 'solarEclipse' || key === 'lunarEclipse') {
+    const result = findNextEclipse(fromDate, sunLonAtDate, key === 'solarEclipse' ? 'solar' : 'lunar');
+    return result ? result.date.getTime() : null;
+  }
+  if (key === 'galileanConjunction') {
+    const stepMs = 10 * 60000;
+    let prev = anyGalileanConjunctionAt(fromDate);
+    for (let i = 1; i <= 20 * 24 * 6; i++) {
+      const t = new Date(fromDate.getTime() + i * stepMs);
+      const on = anyGalileanConjunctionAt(t);
+      if (on && !prev) return t.getTime();
+      prev = on;
+    }
+    return null;
+  }
+  return null;
+}
+
+// Per-alarm schedule: { eventStart, alertAt, alerted } | null. Recomputed
+// only when there's no schedule yet or the one on file has already
+// happened (event start in the past) -- not on every 60s check -- so the
+// forward searches above run rarely, not continuously.
+let alarmSchedule = {};
+function refreshAlarmSchedule(key) {
+  if (!alarms[key] || !observerLoc) { alarmSchedule[key] = null; return; }
+  const now = Date.now();
+  const existing = alarmSchedule[key];
+  if (existing && existing.eventStart > now) return;
+  const searchFrom = existing ? new Date(existing.eventStart + 60000) : new Date(now);
+  const eventStart = searchNextEventStart(key, searchFrom);
+  alarmSchedule[key] = eventStart === null ? null : {
+    eventStart,
+    alertAt: solarNoonAtOrBefore(eventStart, observerLoc.lon),
+    alerted: false,
+  };
+}
+
+Object.keys(alarmCheckboxes).forEach(key => {
+  alarmCheckboxes[key].addEventListener('change', e => {
+    alarms[key] = e.target.checked;
+    localStorage.setItem('antikythera-alarms', JSON.stringify(alarms));
+    getAudioCtx(); // unlock audio on this gesture too, in case the volume panel was never opened
+    if (e.target.checked && !observerLoc) ensureLocation(() => refreshAlarmSchedule(key));
+    else refreshAlarmSchedule(key);
+  });
+});
+
+// Seed schedules for whatever's already enabled from a previous session.
+Object.keys(alarmCheckboxes).forEach(key => refreshAlarmSchedule(key));
 
 const alarmToast = document.getElementById('alarm-toast');
 alarmToast.addEventListener('click', () => alarmToast.classList.remove('show'));
@@ -3139,17 +3223,17 @@ function showAlarmToast(text) {
   showAlarmToast._t = setTimeout(() => alarmToast.classList.remove('show'), 8000);
 }
 
-// Fires only on a false->true transition of each condition, so a still-true
-// condition doesn't re-chime on every check -- only once per rising edge.
 function checkAlarms() {
-  const conditions = computeAlarmConditions(new Date());
+  const now = Date.now();
   ALARM_DEFS.forEach(({ key, label, emoji }) => {
-    const isOn = conditions[key];
-    if (alarms[key] && isOn && !alarmLastState[key]) {
+    if (!alarms[key]) return;
+    refreshAlarmSchedule(key);
+    const sched = alarmSchedule[key];
+    if (sched && !sched.alerted && now >= sched.alertAt) {
       chimeBell(3);
       showAlarmToast(`${emoji} ${label}`);
+      sched.alerted = true;
     }
-    alarmLastState[key] = isOn;
   });
 }
 setInterval(checkAlarms, 60000);
