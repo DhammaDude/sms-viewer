@@ -463,39 +463,39 @@
 // a: AU, e: eccentricity, I/L/peri/node: degrees.
 // ─────────────────────────────────────────────────────────────────────────
 // dotR: each planet's dial marker radius, drawn from its real equatorial
-// diameter (Mercury 4,879km up to Jupiter 139,820km -- a ~29x range) but
-// compressed to a 7-13.5px range. A true linear scale would make Jupiter
-// dwarf its own orbit ring at this dial's size while Mercury and Pluto
-// shrank enough to make their glyph illegible -- a 7px floor avoids that.
-// A pure sqrt(diameter) curve, tried first, compressed Jupiter and Saturn
-// (139,820km vs 116,460km -- 20% apart in reality) down to under a pixel
-// of difference, reading as the same size -- these two are nudged apart
-// by hand from where that formula put them so the real size difference
-// between the solar system's two largest planets stays visible, while the
-// rest still follow the curve.
+// diameter (Mercury 4,879km up to Jupiter 139,820km -- a ~29x range)
+// compressed through sqrt(diameter) into a 7-16px range (7px floor keeps
+// Mercury's glyph legible -- a first pass without one made it illegible).
+// Checked every adjacent pair against its real diameter ratio rather than
+// trusting the curve blindly: it held up everywhere except Jupiter/Saturn
+// (139,820km vs 116,460km -- a real 20% difference, but sqrt-compressed to
+// under a pixel there since both already sit near the top of the curve),
+// so those two are nudged apart by hand from where the formula put them.
+// Venus/Earth and Neptune/Uranus staying nearly identical-sized is
+// correct, not a bug -- their real diameters are only ~5% and ~3% apart.
 const PLANETS = [
-  { name: 'Mercury', symbol: '☿', color: '#b7b0a2', dotR: 7.4,
+  { name: 'Mercury', symbol: '☿', color: '#b7b0a2', dotR: 7.6,
     a: 0.38709927, da: 0.00000037, e: 0.20563593, de: 0.00001906, I: 7.00497902, dI: -0.00594749,
     L: 252.25032350, dL: 149472.67411175, peri: 77.45779628, dperi: 0.16047689, node: 48.33076593, dnode: -0.12534081 },
-  { name: 'Venus', symbol: '♀', color: '#e8c99b', dotR: 8,
+  { name: 'Venus', symbol: '♀', color: '#e8c99b', dotR: 8.7,
     a: 0.72333566, da: 0.00000390, e: 0.00677672, de: -0.00004107, I: 3.39467605, dI: -0.00078890,
     L: 181.97909950, dL: 58517.81538729, peri: 131.60246718, dperi: 0.00268329, node: 76.67984255, dnode: -0.27769418 },
-  { name: 'Earth', symbol: '⊕', color: '#5b93d6', dotR: 8.1,
+  { name: 'Earth', symbol: '⊕', color: '#5b93d6', dotR: 8.8,
     a: 1.00000261, da: 0.00000562, e: 0.01671123, de: -0.00004392, I: -0.00001531, dI: -0.01294668,
     L: 100.46457166, dL: 35999.37244981, peri: 102.93768193, dperi: 0.32327364, node: 0.0, dnode: 0.0 },
-  { name: 'Mars', symbol: '♂', color: '#c1502e', dotR: 7.6,
+  { name: 'Mars', symbol: '♂', color: '#c1502e', dotR: 7.9,
     a: 1.52371034, da: 0.00001847, e: 0.09339410, de: 0.00007882, I: 1.84969142, dI: -0.00813131,
     L: -4.55343205, dL: 19140.30268499, peri: -23.94362959, dperi: 0.44441088, node: 49.55953891, dnode: -0.29257343 },
-  { name: 'Jupiter', symbol: '♃', color: '#d9a066', dotR: 13.5,
+  { name: 'Jupiter', symbol: '♃', color: '#d9a066', dotR: 16,
     a: 5.20288700, da: -0.00011607, e: 0.04838624, de: -0.00013253, I: 1.30439695, dI: -0.00183714,
     L: 34.39644051, dL: 3034.74612775, peri: 14.72847983, dperi: 0.21252668, node: 100.47390909, dnode: 0.20469106 },
-  { name: 'Saturn', symbol: '♄', color: '#e0c68c', dotR: 11.5,
+  { name: 'Saturn', symbol: '♄', color: '#e0c68c', dotR: 13.5,
     a: 9.53667594, da: -0.00125060, e: 0.05386179, de: -0.00050991, I: 2.48599187, dI: 0.00193609,
     L: 49.95424423, dL: 1222.49362201, peri: 92.59887831, dperi: -0.41897216, node: 113.66242448, dnode: -0.28867794 },
-  { name: 'Uranus', symbol: '⛢', color: '#7fd9d9', dotR: 10.2,
+  { name: 'Uranus', symbol: '⛢', color: '#7fd9d9', dotR: 11.9,
     a: 19.18916464, da: -0.00196176, e: 0.04725744, de: -0.00004397, I: 0.77263783, dI: -0.00242939,
     L: 313.23810451, dL: 428.48202785, peri: 170.95427630, dperi: 0.40805281, node: 74.01692503, dnode: 0.04240589 },
-  { name: 'Neptune', symbol: '♆', color: '#4f6fd1', dotR: 9.9,
+  { name: 'Neptune', symbol: '♆', color: '#4f6fd1', dotR: 11.8,
     a: 30.06992276, da: 0.00026291, e: 0.00859048, de: 0.00005105, I: 1.77004347, dI: 0.00035372,
     L: -55.12002969, dL: 218.45945325, peri: 44.96476227, dperi: -0.32241464, node: 131.78422574, dnode: -0.00508664 },
   { name: 'Pluto', symbol: '♇', color: '#a98cc9', dotR: 7,
@@ -525,9 +525,22 @@ const GALILEAN_MOONS = [
   { name: 'Callisto', period: 16.689018, distR: 26.3, phase0: 0.41, color: '#8fb7c9', dotR: 2.7 },
 ];
 
+function galileanCycles(moon, JD) {
+  return (JD - 2451545.0) / moon.period + moon.phase0;
+}
+// Lateral (visible, side-to-side) displacement -- the sine half of the
+// edge-on circular orbit.
 function galileanOffset(moon, JD) {
-  const cycles = (JD - 2451545.0) / moon.period + moon.phase0;
-  return Math.sin(cycles * 2 * Math.PI);
+  return Math.sin(galileanCycles(moon, JD) * 2 * Math.PI);
+}
+// The cosine half of that same orbit is depth: how far toward (positive)
+// or away from (negative) the observer the moon currently is, relative to
+// Jupiter's own center. Behind (negative) AND close enough to the lateral
+// center to fall within Jupiter's disk is when the moon should actually
+// disappear behind the planet, the way a real transit/occultation looks,
+// rather than just becoming a static side-to-side wobble that never hides.
+function galileanDepth(moon, JD) {
+  return Math.cos(galileanCycles(moon, JD) * 2 * Math.PI);
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -1489,6 +1502,8 @@ function drawGalileanStrip(c, cx, cy, jupiterPos, JD, th) {
   const rr = scaleR(jupiterPos.r);
   const lon = jupiterPos.lon;
   const span = 46; // degrees of ecliptic longitude the moons' wobble covers
+  const jupiterR = PLANETS.find(p => p.name === 'Jupiter').dotR;
+  const jx = Math.cos(deg2rad(lon)) * rr, jy = -Math.sin(deg2rad(lon)) * rr;
 
   c.save();
   c.translate(cx, cy);
@@ -1505,6 +1520,17 @@ function drawGalileanStrip(c, cx, cy, jupiterPos, JD, th) {
     const off = galileanOffset(m, JD) * ampFrac * (span / 2) * 0.85;
     const a = deg2rad(lon + off);
     const x = Math.cos(a) * rr, y = -Math.sin(a) * rr;
+
+    // The edge-on circular orbit's other half (cosine, rather than the
+    // sine used for the visible wobble) is depth -- how far toward/away
+    // from the observer the moon sits relative to Jupiter's own center.
+    // Behind (negative) and close enough on screen to fall within
+    // Jupiter's own disk is a transit/occultation: the moon should
+    // actually vanish behind the planet rather than just wobble past it.
+    const depth = galileanDepth(m, JD);
+    const distFromJupiter = Math.hypot(x - jx, y - jy);
+    if (depth < 0 && distFromJupiter < jupiterR) return;
+
     c.beginPath(); c.arc(x, y, m.dotR, 0, 2 * Math.PI);
     c.fillStyle = m.color; c.fill();
     c.strokeStyle = th.metalDeepest; c.lineWidth = 0.6; c.stroke();
