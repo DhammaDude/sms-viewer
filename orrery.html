@@ -952,7 +952,10 @@ function tick() {
 // every animation frame -- rather than once a second -- is what turns that
 // into an actual smooth sweep instead of a once-a-second jump.
 function clockLoop() {
-  if (!playing) render();
+  // Sky View pins the clock ring to the (frozen, while paused) simulated
+  // date rather than sweeping in real time, so there's nothing changing to
+  // redraw for -- skip the otherwise-wasted re-render.
+  if (!playing && !skyViewActive) render();
   requestAnimationFrame(clockLoop);
 }
 requestAnimationFrame(clockLoop);
@@ -1204,11 +1207,14 @@ function drawFlutedRing(c, cx, cy, rIn, rOut, flutes, th) {
 // Clock angle convention (0=12 o'clock, clockwise) is converted to this
 // dial's own (0=3 o'clock, counterclockwise) convention via a = 90 - theta.
 function drawTimeRing(c, cx, cy, th) {
-  // A genuine working clock when idle -- but while Play is running, the
-  // simulated date is racing ahead of real time, so the hands track that
-  // instead and sweep right along with the rest of the dial rather than
-  // sitting still (or ticking at a mismatched real-time pace).
-  const now = playing ? currentDate : new Date();
+  // A genuine working clock when idle in the orrery view -- but while Play
+  // is running, or whenever Sky View is open, the hands read the simulated
+  // date instead. Sky View pins to it even when paused: the whole point of
+  // pausing there is to read off exactly when something rose or set, so the
+  // hands snapping back to real time on pause (while the text caption below
+  // stays correctly on the paused moment) would contradict what's on screen
+  // rather than confirm it.
+  const now = (playing || skyViewActive) ? currentDate : new Date();
   const h = now.getHours() % 12, m = now.getMinutes(), s = now.getSeconds(), ms = now.getMilliseconds();
   const secFrac = s + ms / 1000;
   const minFrac = m + secFrac / 60;
