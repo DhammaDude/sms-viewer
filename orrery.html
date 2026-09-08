@@ -1083,6 +1083,35 @@ const skyView = { zoom: 1, centerAz: 0, centerAlt: 90 };
 // objects without recomputing planetary positions itself.
 let lastJD = null, lastPositions = null, lastEarth = null;
 
+// Jovian system view: clicking Jupiter zooms the dial into Jupiter and its
+// four Galilean moons. jovianT() is a real-wall-clock eased progress value
+// (0 = ordinary dial, 1 = fully zoomed in) rather than a per-frame step, so
+// it reads correctly no matter how often render() happens to be called --
+// same pattern as the resonance glow's MIN_HOLD_MS timer above.
+let jovianViewActive = false;
+let jovianAnimFrom = 0, jovianAnimTo = 0, jovianAnimStart = 0;
+const JOVIAN_ANIM_MS = 550;
+function jovianT() {
+  if (jovianAnimStart === 0) return jovianAnimTo;
+  const p = Math.min(1, (performance.now() - jovianAnimStart) / JOVIAN_ANIM_MS);
+  if (p >= 1) { jovianAnimStart = 0; return jovianAnimTo; }
+  const eased = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+  return jovianAnimFrom + (jovianAnimTo - jovianAnimFrom) * eased;
+}
+function setJovianView(active) {
+  jovianAnimFrom = jovianT();
+  jovianAnimTo = active ? 1 : 0;
+  jovianAnimStart = performance.now();
+  jovianViewActive = active;
+  if (active) {
+    selected = 'Jupiter'; selectedStar = null; selectedMoon = false;
+    skyViewToggleBtn.classList.add('active');
+    skyViewToggleBtn.textContent = '↩';
+    skyViewToggleBtn.title = skyViewToggleBtn.ariaLabel = 'Return to the full orrery view';
+  }
+  render();
+}
+
 const dateInput   = document.getElementById('date-input');
 const todayBtn    = document.getElementById('today-btn');
 const playBtn     = document.getElementById('play-btn');
@@ -1952,6 +1981,77 @@ function getStaticShieldLayer(th) {
   return (staticShieldCache[currentThemeName] = off);
 }
 
+// A miniature top-down orrery of its own, centered on Jupiter: real orbital
+// angle (galileanCycles*360, the same angle updateGalileanResonance already
+// uses) rather than the edge-on wobble drawGalileanStrip draws along
+// Jupiter's own orbit line -- there's room here to actually spread the
+// moons around a circle instead of compressing them into a sideways strip.
+// Drawn under a translate+scale so the caller can morph it in from wherever
+// Jupiter's dot sits on the ordinary dial up to a full centered view.
+const JOVIAN_ORBIT_R = { Io: 70, Europa: 112, Ganymede: 158, Callisto: 218 };
+function drawJovianView(c, originX, originY, scale, alpha, JD, th) {
+  c.save();
+  c.globalAlpha = alpha;
+  c.translate(originX, originY);
+  c.scale(scale, scale);
+
+  const heldMoons = new Set();
+  heldGalileanPairs().forEach(([i, j]) => { heldMoons.add(i); heldMoons.add(j); });
+
+  GALILEAN_MOONS.forEach(m => {
+    c.beginPath();
+    c.arc(0, 0, JOVIAN_ORBIT_R[m.name], 0, 2 * Math.PI);
+    c.strokeStyle = th.orbitRing;
+    c.lineWidth = 1;
+    c.stroke();
+  });
+
+  // Jupiter itself -- a banded gas-giant disk rather than the dial's flat dot
+  const jupiterR = 40;
+  const grad = c.createRadialGradient(-12, -12, 4, 0, 0, jupiterR);
+  grad.addColorStop(0, '#f2ddb2');
+  grad.addColorStop(1, '#a06f3c');
+  c.beginPath(); c.arc(0, 0, jupiterR, 0, 2 * Math.PI);
+  c.fillStyle = grad; c.fill();
+  c.strokeStyle = th.metalMid; c.lineWidth = 2; c.stroke();
+  c.save();
+  c.beginPath(); c.arc(0, 0, jupiterR, 0, 2 * Math.PI); c.clip();
+  c.strokeStyle = 'rgba(90,58,28,0.35)'; c.lineWidth = 4;
+  [-20, -6, 9, 23].forEach(yOff => {
+    c.beginPath(); c.ellipse(0, yOff, jupiterR, jupiterR * 0.22, 0, 0, 2 * Math.PI); c.stroke();
+  });
+  c.restore();
+
+  GALILEAN_MOONS.forEach((m, idx) => {
+    const angle = deg2rad(moonAngleDeg(m, JD));
+    const r = JOVIAN_ORBIT_R[m.name];
+    const x = Math.cos(angle) * r, y = -Math.sin(angle) * r;
+    const depth = galileanDepth(m, JD);
+    const dotR = m.dotR * 2.4;
+
+    if (depth < 0 && Math.hypot(x, y) < jupiterR) return; // eclipsed by Jupiter's disk
+
+    c.beginPath(); c.arc(x, y, dotR, 0, 2 * Math.PI);
+    c.fillStyle = m.color; c.fill();
+    c.strokeStyle = th.metalDeepest; c.lineWidth = 1; c.stroke();
+
+    if (heldMoons.has(idx)) {
+      const breathe = 0.5 + 0.5 * Math.sin(performance.now() / 220);
+      c.beginPath(); c.arc(x, y, dotR + 4 + breathe * 3, 0, 2 * Math.PI);
+      c.strokeStyle = `rgba(255,244,214,${(0.45 + breathe * 0.45).toFixed(3)})`;
+      c.lineWidth = 2 + breathe * 1.2;
+      c.stroke();
+    }
+
+    c.fillStyle = th.glyphDefault || '#ece2c4';
+    c.font = '11px "Cormorant Garamond", serif';
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(m.name, x, y + dotR + 12);
+  });
+
+  c.restore();
+}
+
 function render() {
   const JD = toJulianDate(currentDate);
   const T = (JD - 2451545.0) / 36525;
@@ -2061,6 +2161,21 @@ function render() {
   if (skyViewActive) {
     drawSkyView(ctx, CX, CY, JD, positions, earth, th);
   } else {
+  const jt = jovianT();
+  const jupiterPos = positions['Jupiter'];
+  const jupiterRR = scaleR(jupiterPos.r);
+  const jupiterA = deg2rad(jupiterPos.lon);
+  const jupiterOriginX = CX + Math.cos(jupiterA) * jupiterRR;
+  const jupiterOriginY = CY - Math.sin(jupiterA) * jupiterRR;
+
+  // Ordinary dial content fades out as the Jovian view (drawn below) fades
+  // and grows in from Jupiter's own dial position -- a crossfade rather
+  // than an outright swap, so the transition reads as a zoom rather than a
+  // cut. Skipped once it's fully invisible/inaudible to the click handler
+  // anyway (jt === 1): drawing it at alpha 0 would just be wasted work.
+  if (jt < 1) {
+  ctx.save();
+  ctx.globalAlpha = 1 - jt;
   // orbit rings (static, based on mean semi-major axis)
   ctx.save();
   ctx.translate(CX, CY);
@@ -2141,6 +2256,18 @@ function render() {
 
   updateGalileanResonance(JD);
   drawGalileanStrip(ctx, CX, CY, positions['Jupiter'], JD, th);
+  ctx.restore();
+  } else {
+  updateGalileanResonance(JD);
+  }
+
+  if (jt > 0) {
+    const JOVIAN_SMALL_SCALE = 0.12;
+    const originX = jupiterOriginX + (CX - jupiterOriginX) * jt;
+    const originY = jupiterOriginY + (CY - jupiterOriginY) * jt;
+    const scale = JOVIAN_SMALL_SCALE + (1 - JOVIAN_SMALL_SCALE) * jt;
+    drawJovianView(ctx, originX, originY, scale, jt, JD, th);
+  }
   }
 
   // complications — mounted on a scalloped shield plate that hugs the
@@ -2716,12 +2843,23 @@ dial.addEventListener('click', e => {
     return;
   }
 
+  // While zoomed into the Jovian system, the ordinary dial's planets are
+  // faded out (or gone entirely) and not meant to be clickable -- the
+  // repurposed case pusher (see skyViewToggleBtn below) is the only way
+  // back out, by design.
+  if (jovianViewActive) return;
+
   let best = null, bestD = 22;
   PLANETS.forEach(p => {
     if (!p._screen) return;
     const d = Math.hypot(mx - p._screen.x, my - p._screen.y);
     if (d < bestD) { bestD = d; best = p.name; }
   });
+  if (best === 'Jupiter') {
+    selected = 'Jupiter'; selectedStar = null; selectedMoon = false;
+    setJovianView(true);
+    return;
+  }
   if (best) { selected = best; selectedStar = null; selectedMoon = false; render(); }
 });
 
@@ -2835,6 +2973,15 @@ const skyViewToggleBtn = document.getElementById('sky-view-crown');
 const SKY_VIEW_MAX_SENSIBLE_SPEED = 3600000; // 1 hour/sec
 let preSkyViewSpeed = null;
 skyViewToggleBtn.addEventListener('click', () => {
+  // Same pusher, repurposed as the way out of the Jovian zoom -- while
+  // that's active it means "back to the full view" instead of "Sky View".
+  if (jovianViewActive) {
+    setJovianView(false);
+    skyViewToggleBtn.classList.remove('active');
+    skyViewToggleBtn.textContent = '✦';
+    skyViewToggleBtn.title = skyViewToggleBtn.ariaLabel = 'Show the sky as seen from your location';
+    return;
+  }
   if (skyViewActive) {
     skyViewActive = false;
     skyViewToggleBtn.classList.remove('active');
