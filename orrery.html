@@ -699,7 +699,13 @@ function toJulianDate(date) { return date.getTime() / 86400000 + 2440587.5; }
 function fromJulianDate(jd) { return new Date((jd - 2440587.5) * 86400000); }
 
 const SYNODIC_MONTH = 29.530588853;
-const NEW_MOON_REF_JD = 2451550.1; // 2000-01-06 18:14 UT, a known new moon
+// Computed from the date rather than hand-transcribed as a JD literal --
+// a previous hardcoded value (2451550.1) silently drifted about 3h50m from
+// the new moon it was labeled as, biasing every phase calculation by that
+// fixed offset. Deriving it from the ISO timestamp makes that class of
+// error structurally impossible: the constant can't disagree with its own
+// stated source.
+const NEW_MOON_REF_JD = toJulianDate(new Date('2000-01-06T18:14:00Z')); // a known new moon
 
 function moonPhaseAt(date) {
   const jd = toJulianDate(date);
@@ -1795,9 +1801,17 @@ function render() {
 
   const metonicYear = ((currentDate.getFullYear() - 2000) % 19 + 19) % 19 + 1;
 
-  const startOfYear = new Date(currentDate.getFullYear(), 0, 1).getTime();
-  const daysInYear = (new Date(currentDate.getFullYear() + 1, 0, 1).getTime() - startOfYear) / 86400000;
-  const dayOfYear = Math.floor((new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate()).getTime() - startOfYear) / 86400000) + 1;
+  // Date.UTC() rather than local `new Date(y,m,d)` -- counting calendar
+  // days by dividing a millisecond difference by a fixed 86400000 breaks
+  // across a DST transition, where local-midnight-to-local-midnight isn't
+  // actually 24h (23h on the spring-forward date, 25h on fall-back), which
+  // repeated a day number for a full day after spring-forward and skipped
+  // one entirely after fall-back. Date.UTC() components carry no local
+  // time zone/DST rules at all, so the interval between any two calendar
+  // dates built this way is always an exact multiple of a day.
+  const startOfYear = Date.UTC(currentDate.getFullYear(), 0, 1);
+  const daysInYear = (Date.UTC(currentDate.getFullYear() + 1, 0, 1) - startOfYear) / 86400000;
+  const dayOfYear = Math.floor((Date.UTC(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate()) - startOfYear) / 86400000) + 1;
 
   const MONTH_ABBR = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
   const dateStr = `${String(currentDate.getDate()).padStart(2, '0')} ${MONTH_ABBR[currentDate.getMonth()]}`;
