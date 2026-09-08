@@ -635,19 +635,30 @@ function galileanDepth(moon, JD) {
 const RESONANT_PAIRS = [[0, 1], [1, 2]]; // Io-Europa, Europa-Ganymede
 const CONJUNCTION_THRESHOLD_DEG = 4;
 
+// A real alignment window is often only a couple of REAL SECONDS wide at
+// fast playback speeds (e.g. 1 hour/sec -- Io and Europa's relative motion
+// alone chews through the whole +/-4deg window in well under a simulated
+// day), too brief to reliably notice. Rather than tying visibility 1:1 to
+// the alignment's own duration, each pair gets a floor: once triggered,
+// it stays marked "held" for at least MIN_HOLD_MS of real wall-clock time,
+// continuously refreshed while still actually aligned, so fast playback
+// can't make an event flash by in a fraction of a second.
+const MIN_HOLD_MS = 1100;
+
 function moonAngleDeg(moon, JD) { return normDeg(galileanCycles(moon, JD) * 360); }
 
-// Level-triggered, not a fixed-duration one-shot: a moon pulses for
-// exactly as long as it's actually within the threshold margin of its
-// resonant partner, and stops the instant it isn't -- the visual duration
-// IS the alignment's own duration, not an arbitrary animation length.
-let resonatingMoonIndices = new Set();
+let pairHeldUntil = {}; // "i-j" -> wall-clock ms until which the pair should still read as active
 function updateGalileanResonance(JD) {
-  resonatingMoonIndices.clear();
+  const now = performance.now();
   RESONANT_PAIRS.forEach(([i, j]) => {
+    const key = i + '-' + j;
     const sep = angleSeparation(moonAngleDeg(GALILEAN_MOONS[i], JD), moonAngleDeg(GALILEAN_MOONS[j], JD));
-    if (sep < CONJUNCTION_THRESHOLD_DEG) { resonatingMoonIndices.add(i); resonatingMoonIndices.add(j); }
+    if (sep < CONJUNCTION_THRESHOLD_DEG) pairHeldUntil[key] = now + MIN_HOLD_MS;
   });
+}
+function heldGalileanPairs() {
+  const now = performance.now();
+  return RESONANT_PAIRS.filter(([i, j]) => (pairHeldUntil[i + '-' + j] || 0) > now);
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -1666,6 +1677,13 @@ function drawGalileanStrip(c, cx, cy, jupiterPos, JD, th) {
   c.save();
   c.translate(cx, cy);
 
+  // Which moons belong to a currently-held pair (see
+  // updateGalileanResonance/heldGalileanPairs) -- held rather than merely
+  // "aligned right now" so the glow can't flash by in under a real second
+  // at fast playback speeds.
+  const heldMoons = new Set();
+  heldGalileanPairs().forEach(([i, j]) => { heldMoons.add(i); heldMoons.add(j); });
+
   const maxDist = GALILEAN_MOONS[GALILEAN_MOONS.length - 1].distR;
   GALILEAN_MOONS.forEach((m, idx) => {
     // sqrt rather than the real linear distance ratio -- linear compressed
@@ -1693,13 +1711,10 @@ function drawGalileanStrip(c, cx, cy, jupiterPos, JD, th) {
     c.fillStyle = m.color; c.fill();
     c.strokeStyle = th.metalDeepest; c.lineWidth = 0.6; c.stroke();
 
-    // A live breathing glow on the moon itself, held for exactly as long
-    // as it's actually within the resonance's angular margin of its
-    // partner -- on the instant the alignment starts, off the instant it
-    // ends, rather than a fixed-length animation timed independently of
-    // the real thing it's meant to represent. The breathing rate is real
-    // (wall-clock) time so it stays smooth regardless of simulated speed.
-    if (resonatingMoonIndices.has(idx)) {
+    // Breathing glow, held for at least MIN_HOLD_MS real time so it's
+    // still legible even when the underlying alignment window itself is
+    // only a real second or two wide at fast playback.
+    if (heldMoons.has(idx)) {
       const breathe = 0.5 + 0.5 * Math.sin(performance.now() / 220);
       c.beginPath(); c.arc(x, y, m.dotR + 2 + breathe * 1.8, 0, 2 * Math.PI);
       c.strokeStyle = `rgba(255,244,214,${(0.45 + breathe * 0.45).toFixed(3)})`;
