@@ -623,35 +623,40 @@ function galileanDepth(moon, JD) {
 // real Laplace resonance -- their orbital periods sit in a 1:2:4 ratio, so
 // their orbital longitudes repeatedly nearly-align. This app's moons use
 // real periods but independent phase0 constants (see above), so that
-// resonance falls out of the real numbers rather than being hand-scripted
-// -- close approaches in orbital angle (a "conjunction") do genuinely
-// recur close to the real ~7/3.5/1.75-day beat. Every pair is checked, not
-// just the three resonant ones, since Callisto's near-but-not-quite
-// resonance is part of what makes it the odd one out.
-const GALILEAN_PAIRS = [];
-for (let gi = 0; gi < GALILEAN_MOONS.length; gi++) {
-  for (let gj = gi + 1; gj < GALILEAN_MOONS.length; gj++) GALILEAN_PAIRS.push([gi, gj]);
-}
+// resonance falls out of the real numbers rather than being hand-scripted.
+// Callisto is deliberately excluded here: it's close to but not locked
+// into the pattern, so including it would dilute "the resonance" into a
+// generic conjunction-of-any-two-moons check. The condition below instead
+// requires all three resonant moons mutually within the threshold AT ONCE
+// -- a genuine triple alignment, and a much rarer moment than any single
+// pair conjuncting (which the resonance itself normally staggers apart).
+const RESONANT_MOON_INDICES = [0, 1, 2]; // Io, Europa, Ganymede
 const CONJUNCTION_THRESHOLD_DEG = 4;
 const JUPITER_PULSE_DURATION_MS = 900;
 
 function moonAngleDeg(moon, JD) { return normDeg(galileanCycles(moon, JD) * 360); }
 
-// Edge-triggered: a pulse fires only on the frame a pair's angular
-// separation crosses below the threshold, not on every frame it stays
-// below it (which would just be a held glow, not a discrete pulse).
-let lastMoonSeparation = {};
+function allThreeResonantAt(JD) {
+  const angles = RESONANT_MOON_INDICES.map(i => moonAngleDeg(GALILEAN_MOONS[i], JD));
+  for (let a = 0; a < angles.length; a++) {
+    for (let b = a + 1; b < angles.length; b++) {
+      if (angleSeparation(angles[a], angles[b]) >= CONJUNCTION_THRESHOLD_DEG) return false;
+    }
+  }
+  return true;
+}
+
+// Edge-triggered: a pulse fires only on the frame the triple-alignment
+// condition turns true, not on every frame it stays true (which would just
+// be a held glow, not a discrete pulse).
+let lastTripleResonant;
 let jupiterPulses = [];
 function checkGalileanConjunctions(JD) {
-  GALILEAN_PAIRS.forEach(([i, j]) => {
-    const key = i + '-' + j;
-    const sep = angleSeparation(moonAngleDeg(GALILEAN_MOONS[i], JD), moonAngleDeg(GALILEAN_MOONS[j], JD));
-    const last = lastMoonSeparation[key];
-    if (last !== undefined && last >= CONJUNCTION_THRESHOLD_DEG && sep < CONJUNCTION_THRESHOLD_DEG) {
-      jupiterPulses.push({ start: performance.now(), pair: [i, j] });
-    }
-    lastMoonSeparation[key] = sep;
-  });
+  const isOn = allThreeResonantAt(JD);
+  if (lastTripleResonant === false && isOn) {
+    jupiterPulses.push({ start: performance.now(), moons: RESONANT_MOON_INDICES });
+  }
+  lastTripleResonant = isOn;
   jupiterPulses = jupiterPulses.filter(p => performance.now() - p.start < JUPITER_PULSE_DURATION_MS);
 }
 
@@ -1698,10 +1703,10 @@ function drawGalileanStrip(c, cx, cy, jupiterPos, JD, th) {
     c.fillStyle = m.color; c.fill();
     c.strokeStyle = th.metalDeepest; c.lineWidth = 0.6; c.stroke();
 
-    // Briefly ring whichever moon(s) just triggered a conjunction pulse,
-    // so the highlight reads as "these two" rather than just a generic
-    // flash on Jupiter itself.
-    if (jupiterPulses.some(p => p.pair.includes(idx))) {
+    // Briefly ring whichever moons just triggered a triple-resonance
+    // pulse, so the highlight reads as "these three" rather than just a
+    // generic flash on Jupiter itself.
+    if (jupiterPulses.some(p => p.moons.includes(idx))) {
       c.beginPath(); c.arc(x, y, m.dotR + 2.5, 0, 2 * Math.PI);
       c.strokeStyle = 'rgba(255,244,214,0.85)'; c.lineWidth = 1.3; c.stroke();
     }
@@ -3141,8 +3146,7 @@ function computeAlarmConditions(date) {
 }
 
 function anyGalileanConjunctionAt(date) {
-  const JD = toJulianDate(date);
-  return GALILEAN_PAIRS.some(([i, j]) => angleSeparation(moonAngleDeg(GALILEAN_MOONS[i], JD), moonAngleDeg(GALILEAN_MOONS[j], JD)) < CONJUNCTION_THRESHOLD_DEG);
+  return allThreeResonantAt(toJulianDate(date));
 }
 
 // Forward search for the next rising edge of a given alarm's condition,
