@@ -634,26 +634,20 @@ function galileanDepth(moon, JD) {
 // a resonant pair itself -- just a byproduct of the other two).
 const RESONANT_PAIRS = [[0, 1], [1, 2]]; // Io-Europa, Europa-Ganymede
 const CONJUNCTION_THRESHOLD_DEG = 4;
-const JUPITER_PULSE_DURATION_MS = 900;
 
 function moonAngleDeg(moon, JD) { return normDeg(galileanCycles(moon, JD) * 360); }
 
-// Edge-triggered per pair: a pulse fires only on the frame a pair's
-// separation crosses below the threshold, not on every frame it stays
-// below it (which would just be a held glow, not a discrete pulse).
-let lastPairSeparation = {};
-let jupiterPulses = [];
-function checkGalileanConjunctions(JD) {
+// Level-triggered, not a fixed-duration one-shot: a moon pulses for
+// exactly as long as it's actually within the threshold margin of its
+// resonant partner, and stops the instant it isn't -- the visual duration
+// IS the alignment's own duration, not an arbitrary animation length.
+let resonatingMoonIndices = new Set();
+function updateGalileanResonance(JD) {
+  resonatingMoonIndices.clear();
   RESONANT_PAIRS.forEach(([i, j]) => {
-    const key = i + '-' + j;
     const sep = angleSeparation(moonAngleDeg(GALILEAN_MOONS[i], JD), moonAngleDeg(GALILEAN_MOONS[j], JD));
-    const last = lastPairSeparation[key];
-    if (last !== undefined && last >= CONJUNCTION_THRESHOLD_DEG && sep < CONJUNCTION_THRESHOLD_DEG) {
-      jupiterPulses.push({ start: performance.now(), moons: [i, j] });
-    }
-    lastPairSeparation[key] = sep;
+    if (sep < CONJUNCTION_THRESHOLD_DEG) { resonatingMoonIndices.add(i); resonatingMoonIndices.add(j); }
   });
-  jupiterPulses = jupiterPulses.filter(p => performance.now() - p.start < JUPITER_PULSE_DURATION_MS);
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -1699,28 +1693,19 @@ function drawGalileanStrip(c, cx, cy, jupiterPos, JD, th) {
     c.fillStyle = m.color; c.fill();
     c.strokeStyle = th.metalDeepest; c.lineWidth = 0.6; c.stroke();
 
-    // Briefly ring whichever pair (Io-Europa, or Europa-Ganymede handing
-    // off from it) just triggered a pulse, so the highlight reads as
-    // "these two" rather than just a generic flash on Jupiter itself.
-    if (jupiterPulses.some(p => p.moons.includes(idx))) {
-      c.beginPath(); c.arc(x, y, m.dotR + 2.5, 0, 2 * Math.PI);
-      c.strokeStyle = 'rgba(255,244,214,0.85)'; c.lineWidth = 1.3; c.stroke();
+    // A live breathing glow on the moon itself, held for exactly as long
+    // as it's actually within the resonance's angular margin of its
+    // partner -- on the instant the alignment starts, off the instant it
+    // ends, rather than a fixed-length animation timed independently of
+    // the real thing it's meant to represent. The breathing rate is real
+    // (wall-clock) time so it stays smooth regardless of simulated speed.
+    if (resonatingMoonIndices.has(idx)) {
+      const breathe = 0.5 + 0.5 * Math.sin(performance.now() / 220);
+      c.beginPath(); c.arc(x, y, m.dotR + 2 + breathe * 1.8, 0, 2 * Math.PI);
+      c.strokeStyle = `rgba(255,244,214,${(0.45 + breathe * 0.45).toFixed(3)})`;
+      c.lineWidth = 1.2 + breathe * 0.7;
+      c.stroke();
     }
-  });
-
-  // A discrete shockwave ring from Jupiter's own marker for each active
-  // conjunction pulse -- expanding and fading over JUPITER_PULSE_DURATION_MS
-  // of real (wall-clock) time, independent of however fast simulated time
-  // is currently running, so it always reads as a distinct "blip" rather
-  // than a speed-dependent flicker.
-  jupiterPulses.forEach(p => {
-    const t = Math.min(1, (performance.now() - p.start) / JUPITER_PULSE_DURATION_MS);
-    const ringR = jupiterR + 4 + t * 26;
-    const alpha = (1 - t) * 0.85;
-    c.beginPath(); c.arc(jx, jy, ringR, 0, 2 * Math.PI);
-    c.strokeStyle = `rgba(255,244,214,${alpha.toFixed(3)})`;
-    c.lineWidth = 2.4 * (1 - t * 0.5);
-    c.stroke();
   });
 
   c.restore();
@@ -2139,7 +2124,7 @@ function render() {
   });
   ctx.restore();
 
-  checkGalileanConjunctions(JD);
+  updateGalileanResonance(JD);
   drawGalileanStrip(ctx, CX, CY, positions['Jupiter'], JD, th);
   }
 
