@@ -1035,7 +1035,9 @@ function snapshotData(date) {
   const earth = positions['Earth'];
   const sunGeoLon = normDeg(earth.lon + 180);
   const moonPhase = moonPhaseAt(date);
-  const metonicYear = ((date.getUTCFullYear() - 2000) % 19 + 19) % 19 + 1;
+  // The traditional ecclesiastical "Golden Number" -- (year mod 19) + 1 --
+  // rather than an arbitrarily-anchored 19-year counter of our own.
+  const metonicYear = (date.getUTCFullYear() % 19) + 1;
 
   const planets = PLANETS.map(p => {
     const pos = positions[p.name];
@@ -1799,7 +1801,9 @@ function render() {
   const moonPhase = moonPhaseAt(currentDate);
   const eclipseType = eclipseTypeAt(currentDate, sunGeoLon);
 
-  const metonicYear = ((currentDate.getFullYear() - 2000) % 19 + 19) % 19 + 1;
+  // The traditional ecclesiastical "Golden Number" -- (year mod 19) + 1 --
+  // rather than an arbitrarily-anchored 19-year counter of our own.
+  const metonicYear = (currentDate.getFullYear() % 19) + 1;
 
   // Date.UTC() rather than local `new Date(y,m,d)` -- counting calendar
   // days by dividing a millisecond difference by a fixed 86400000 breaks
