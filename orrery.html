@@ -898,6 +898,18 @@ function toLocalDateInputValue(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// Shown in the readout caption so Play can be paused the instant something
+// becomes visible in Sky View and the exact time read straight off the dial,
+// rather than only the date.
+function formatTimeOfDay(d) {
+  let h = d.getHours();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12; if (h === 0) h = 12;
+  const m = String(d.getMinutes()).padStart(2, '0');
+  const s = String(d.getSeconds()).padStart(2, '0');
+  return `${h}:${m}:${s} ${ampm}`;
+}
+
 function setDate(d) {
   currentDate = d;
   dateInput.value = toLocalDateInputValue(d);
@@ -1729,7 +1741,7 @@ function render() {
 
   const weekdayTitle = weekday[0] + weekday.slice(1).toLowerCase();
   const monthTitle = MONTH_ABBR[currentDate.getMonth()][0] + MONTH_ABBR[currentDate.getMonth()].slice(1).toLowerCase();
-  readout.textContent = `${weekdayTitle}, ${String(currentDate.getDate()).padStart(2, '0')} ${monthTitle} ${currentDate.getFullYear()}` + `  ·  ${zodiacSign(sunGeoLon)}`;
+  readout.textContent = `${weekdayTitle}, ${String(currentDate.getDate()).padStart(2, '0')} ${monthTitle} ${currentDate.getFullYear()}, ${formatTimeOfDay(currentDate)}` + `  ·  ${zodiacSign(sunGeoLon)}`;
   const eclipseNote = eclipseType ? ` · ⚠ ${eclipseType === 'solar' ? 'Solar' : 'Lunar'} eclipse likely` : '';
   almanacLine.textContent = skyViewActive && observerLoc
     ? `Sky View · ${observerLoc.lat.toFixed(1)}°, ${observerLoc.lon.toFixed(1)}° · drag to look around, scroll to zoom, double-click to reset`
