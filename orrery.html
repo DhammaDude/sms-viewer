@@ -464,12 +464,15 @@
 // ─────────────────────────────────────────────────────────────────────────
 // dotR: each planet's dial marker radius, drawn from its real equatorial
 // diameter (Mercury 4,879km up to Jupiter 139,820km -- a ~29x range) but
-// compressed through sqrt(diameter), the same trick this file already
-// uses for orbital distance, then mapped to a 7-12.5px range. A true
-// linear scale would make Jupiter dwarf its own orbit ring at this dial's
-// size while Mercury and Pluto shrank enough to make their glyph illegible
-// -- sqrt plus a 7px floor keeps Jupiter and Saturn reading clearly larger
-// than the rest without the smallest bodies losing their symbol.
+// compressed to a 7-13.5px range. A true linear scale would make Jupiter
+// dwarf its own orbit ring at this dial's size while Mercury and Pluto
+// shrank enough to make their glyph illegible -- a 7px floor avoids that.
+// A pure sqrt(diameter) curve, tried first, compressed Jupiter and Saturn
+// (139,820km vs 116,460km -- 20% apart in reality) down to under a pixel
+// of difference, reading as the same size -- these two are nudged apart
+// by hand from where that formula put them so the real size difference
+// between the solar system's two largest planets stays visible, while the
+// rest still follow the curve.
 const PLANETS = [
   { name: 'Mercury', symbol: '☿', color: '#b7b0a2', dotR: 7.4,
     a: 0.38709927, da: 0.00000037, e: 0.20563593, de: 0.00001906, I: 7.00497902, dI: -0.00594749,
@@ -483,13 +486,13 @@ const PLANETS = [
   { name: 'Mars', symbol: '♂', color: '#c1502e', dotR: 7.6,
     a: 1.52371034, da: 0.00001847, e: 0.09339410, de: 0.00007882, I: 1.84969142, dI: -0.00813131,
     L: -4.55343205, dL: 19140.30268499, peri: -23.94362959, dperi: 0.44441088, node: 49.55953891, dnode: -0.29257343 },
-  { name: 'Jupiter', symbol: '♃', color: '#d9a066', dotR: 12.5,
+  { name: 'Jupiter', symbol: '♃', color: '#d9a066', dotR: 13.5,
     a: 5.20288700, da: -0.00011607, e: 0.04838624, de: -0.00013253, I: 1.30439695, dI: -0.00183714,
     L: 34.39644051, dL: 3034.74612775, peri: 14.72847983, dperi: 0.21252668, node: 100.47390909, dnode: 0.20469106 },
-  { name: 'Saturn', symbol: '♄', color: '#e0c68c', dotR: 12,
+  { name: 'Saturn', symbol: '♄', color: '#e0c68c', dotR: 11.5,
     a: 9.53667594, da: -0.00125060, e: 0.05386179, de: -0.00050991, I: 2.48599187, dI: 0.00193609,
     L: 49.95424423, dL: 1222.49362201, peri: 92.59887831, dperi: -0.41897216, node: 113.66242448, dnode: -0.28867794 },
-  { name: 'Uranus', symbol: '⛢', color: '#7fd9d9', dotR: 10,
+  { name: 'Uranus', symbol: '⛢', color: '#7fd9d9', dotR: 10.2,
     a: 19.18916464, da: -0.00196176, e: 0.04725744, de: -0.00004397, I: 0.77263783, dI: -0.00242939,
     L: 313.23810451, dL: 428.48202785, peri: 170.95427630, dperi: 0.40805281, node: 74.01692503, dnode: 0.04240589 },
   { name: 'Neptune', symbol: '♆', color: '#4f6fd1', dotR: 9.9,
