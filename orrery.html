@@ -451,6 +451,7 @@
           </div>
           <div class="row" style="margin-top:6px">
             <button class="ctl" id="jump-retrograde-btn">Next Retrograde</button>
+            <button class="ctl" id="jump-galilean-conjunction-btn">Next Galilean Conjunction</button>
           </div>
         </div>
         <div>
@@ -1171,6 +1172,7 @@ const jumpFullMoonBtn = document.getElementById('jump-full-moon-btn');
 const jumpSolarEclipseBtn = document.getElementById('jump-solar-eclipse-btn');
 const jumpLunarEclipseBtn = document.getElementById('jump-lunar-eclipse-btn');
 const jumpRetrogradeBtn = document.getElementById('jump-retrograde-btn');
+const jumpGalileanConjunctionBtn = document.getElementById('jump-galilean-conjunction-btn');
 
 jumpNewMoonBtn.addEventListener('click', () => setDate(nextPhaseDate(currentDate, 0)));
 jumpFullMoonBtn.addEventListener('click', () => setDate(nextPhaseDate(currentDate, 0.5)));
@@ -1224,6 +1226,15 @@ jumpRetrogradeBtn.addEventListener('click', () => {
   } else {
     almanacLine.textContent = "Couldn't find a retrograde in the next ~5 years.";
   }
+});
+
+// searchNextEventStart's 'galileanConjunction' branch is the same rising-edge
+// scan the conjunction alarm uses to schedule itself, reused here for a
+// direct jump instead of a midday-before alert.
+jumpGalileanConjunctionBtn.addEventListener('click', () => {
+  const nextMs = searchNextEventStart('galileanConjunction', currentDate);
+  if (nextMs !== null) setDate(new Date(nextMs));
+  else almanacLine.textContent = "Couldn't find a Galilean moon conjunction in the next ~20 days.";
 });
 
 // Calendar fields (day-of-year, the date picker, weekday/date readouts) use
