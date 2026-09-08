@@ -2178,22 +2178,34 @@ function drawMoonPhase(c, cx, cy, r, phase, th) {
   c.fillStyle = 'rgba(236,226,196,0.5)';
   stars.forEach(([sx, sy]) => { c.beginPath(); c.arc(sx, sy, 1, 0, 2 * Math.PI); c.fill(); });
 
+  // Built as a polygon sampling both the disk's own limb and the terminator
+  // (an ellipse of half-width r*cos(theta), signed) directly, rather than
+  // the arc()+ellipse() combination this used before -- that relied on the
+  // two curves' start/end angles happening to already meet up with no gap,
+  // which held for every quarter of the cycle except waning crescent
+  // (phase .75-1), where they didn't: the terminator's path silently
+  // failed to connect, so only the plain half-disk from the limb ever
+  // rendered there and the phase visibly froze at a half-moon look for the
+  // entire last quarter of the cycle instead of continuing to thin out
+  // toward new moon. Sampling both curves as explicit points removes the
+  // implicit-connection assumption entirely.
   const theta = phase * 2 * Math.PI;
-  const rx = r * Math.abs(Math.cos(theta));
-  const litRight = phase < 0.5;
-
+  const cosTheta = Math.cos(theta);
+  const sign = phase < 0.5 ? 1 : -1; // which side (right/left) is the lit limb
+  const N = 48;
   c.beginPath();
-  c.fillStyle = '#ece2c4';
-  if (litRight) {
-    c.moveTo(0, -r);
-    c.arc(0, 0, r, -Math.PI / 2, Math.PI / 2, false);
-    c.ellipse(0, 0, rx, r, 0, Math.PI / 2, -Math.PI / 2, phase < 0.25);
-  } else {
-    c.moveTo(0, -r);
-    c.arc(0, 0, r, -Math.PI / 2, Math.PI / 2, true);
-    c.ellipse(0, 0, rx, r, 0, -Math.PI / 2, Math.PI / 2, phase > 0.75);
+  for (let i = 0; i <= N; i++) {
+    const t = -Math.PI / 2 + (i / N) * Math.PI;
+    const x = sign * Math.cos(t) * r, y = Math.sin(t) * r;
+    if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
   }
-  c.closePath(); c.fill();
+  for (let i = 0; i <= N; i++) {
+    const t = Math.PI / 2 - (i / N) * Math.PI;
+    c.lineTo(sign * cosTheta * Math.cos(t) * r, Math.sin(t) * r);
+  }
+  c.closePath();
+  c.fillStyle = '#ece2c4';
+  c.fill();
 
   drawComplicationBezel(c, r, th);
   c.restore();
