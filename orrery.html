@@ -1254,6 +1254,70 @@ function drawSkyView(c, cx, cy, JD, positions, earth, th) {
 
   const lstDeg = localSiderealTimeDeg(JD, observerLoc.lon);
   const pxPerRad = R_MAX / (Math.PI / 2) * skyView.zoom;
+
+  // Horizon line + ground tint. Traces alt=0 across the visible dome by
+  // walking each bearing outward from center and finding where altitude
+  // crosses zero, using the same tangent-plane basis drag-panning uses --
+  // cheaper than re-deriving az/alt through the full projectSky/altAzToVec
+  // round trip for every sample.
+  {
+    const centerVec = altAzToVec(skyView.centerAz, skyView.centerAlt);
+    const { right, up2 } = basisAt(centerVec);
+    const thetaMax = (Math.PI / 2) / skyView.zoom;
+    const altZAt = (theta, bearing) => {
+      const s = Math.sin(theta), co = Math.cos(theta);
+      return co * centerVec.z + s * (Math.sin(bearing) * right.z + Math.cos(bearing) * up2.z);
+    };
+    const HORIZON_N = 96, STEPS = 24;
+    const horizonPts = [];
+    for (let i = 0; i < HORIZON_N; i++) {
+      const bearing = (i / HORIZON_N) * 2 * Math.PI;
+      let prevZ = altZAt(0, bearing), crossTheta = null;
+      for (let s = 1; s <= STEPS; s++) {
+        const theta = thetaMax * s / STEPS;
+        const z = altZAt(theta, bearing);
+        if ((prevZ >= 0) !== (z >= 0)) {
+          const t = prevZ / (prevZ - z);
+          crossTheta = thetaMax * (s - 1 + t) / STEPS;
+          break;
+        }
+        prevZ = z;
+      }
+      horizonPts.push(crossTheta === null ? null : { x: crossTheta * pxPerRad * Math.sin(bearing), y: -crossTheta * pxPerRad * Math.cos(bearing) });
+    }
+
+    if (horizonPts.every(p => p)) {
+      c.save();
+      c.fillStyle = 'rgba(14,11,7,0.4)';
+      c.beginPath();
+      if (skyView.centerAlt >= 0) {
+        c.arc(0, 0, R_MAX, 0, 2 * Math.PI);
+        horizonPts.forEach((p, i) => { i === 0 ? c.moveTo(p.x, p.y) : c.lineTo(p.x, p.y); });
+        c.closePath();
+        c.fill('evenodd');
+      } else {
+        horizonPts.forEach((p, i) => { i === 0 ? c.moveTo(p.x, p.y) : c.lineTo(p.x, p.y); });
+        c.closePath();
+        c.fill();
+      }
+      c.restore();
+    }
+
+    c.save();
+    c.setLineDash([4, 3]);
+    c.strokeStyle = 'rgba(201,165,74,0.7)';
+    c.lineWidth = 1.4;
+    c.beginPath();
+    let started = false;
+    for (let i = 0; i <= HORIZON_N; i++) {
+      const p = horizonPts[i % HORIZON_N];
+      if (!p) { started = false; continue; }
+      if (!started) { c.moveTo(p.x, p.y); started = true; } else { c.lineTo(p.x, p.y); }
+    }
+    c.stroke();
+    c.restore();
+  }
+
   // Marker/label size grows with zoom too (sub-linear, capped) -- otherwise
   // zooming in only spreads objects apart without making them any easier
   // to read, which defeats the point of zooming in at all.
