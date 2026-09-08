@@ -1192,7 +1192,11 @@ function drawFlutedRing(c, cx, cy, rIn, rOut, flutes, th) {
 // Clock angle convention (0=12 o'clock, clockwise) is converted to this
 // dial's own (0=3 o'clock, counterclockwise) convention via a = 90 - theta.
 function drawTimeRing(c, cx, cy, th) {
-  const now = new Date();
+  // A genuine working clock when idle -- but while Play is running, the
+  // simulated date is racing ahead of real time, so the hands track that
+  // instead and sweep right along with the rest of the dial rather than
+  // sitting still (or ticking at a mismatched real-time pace).
+  const now = playing ? currentDate : new Date();
   const h = now.getHours() % 12, m = now.getMinutes(), s = now.getSeconds(), ms = now.getMilliseconds();
   const secFrac = s + ms / 1000;
   const minFrac = m + secFrac / 60;
