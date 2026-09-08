@@ -101,6 +101,38 @@
   }
   #settings-btn:hover, #settings-btn:focus-visible { opacity: 1; color: var(--brass); background: var(--panel2); }
 
+  /* Audio button sits left of Settings, same treatment -- its icon reflects
+     mute/volume state so the state is visible without opening the panel. */
+  #audio-btn {
+    position: fixed; top: 14px; right: 58px; z-index: 60;
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--panel2); border: 1px solid var(--border); color: var(--muted);
+    font-size: 15px; line-height: 1; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    opacity: .55; transition: opacity .15s, color .15s, background .15s;
+  }
+  #audio-btn:hover, #audio-btn:focus-visible, #audio-btn.active { opacity: 1; color: var(--brass); background: var(--panel2); }
+
+  #audio-panel {
+    display: none; position: fixed; top: 56px; right: 14px; z-index: 61;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; width: 190px; flex-direction: column; gap: 10px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.4);
+  }
+  #audio-panel.open { display: flex; }
+  #audio-panel-row { display: flex; align-items: center; gap: 8px; }
+  #audio-mute-btn {
+    background: var(--panel2); border: 1px solid var(--border); color: var(--brass);
+    width: 30px; height: 30px; border-radius: 6px; cursor: pointer; font-size: 14px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  #audio-mute-btn.active { background: var(--brass); color: var(--ctl-active-text); }
+  #audio-volume { flex: 1; accent-color: var(--brass); }
+  #audio-panel-label {
+    font-family: var(--font-display); font-size: 10px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .1em;
+  }
+
   #app-header { padding: 0 0 14px; }
   #app-header h1 {
     font-family: var(--font-display); font-size: 17px; font-weight: 600;
@@ -292,6 +324,27 @@
   #range-modal-fields { display: flex; flex-direction: column; gap: 10px; }
   #range-modal-fields .row { display: flex; gap: 10px; }
 
+  /* ── Alarms (Settings) ── */
+  #alarm-list { display: flex; flex-direction: column; gap: 8px; }
+  #alarm-list label {
+    display: flex; align-items: center; gap: 8px; cursor: pointer;
+    font-family: var(--font-body); font-size: 13px; color: var(--parchment);
+    text-transform: none; letter-spacing: normal;
+  }
+  #alarm-list input[type="checkbox"] { accent-color: var(--brass); width: 15px; height: 15px; flex-shrink: 0; }
+  #alarm-hint { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+  /* Fired-alarm toast -- brief, dismissable, doesn't block anything underneath */
+  #alarm-toast {
+    display: none; position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+    z-index: 400; background: var(--panel); border: 1px solid var(--brass);
+    border-radius: 8px; padding: 10px 16px; max-width: min(360px, calc(100vw - 28px));
+    box-shadow: 0 6px 18px rgba(0,0,0,.5); font-family: var(--font-heading);
+    font-style: italic; font-size: 13px; color: var(--parchment); text-align: center;
+    cursor: pointer;
+  }
+  #alarm-toast.show { display: block; }
+
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -300,6 +353,15 @@
 <body>
 
 <button id="settings-btn" title="Settings" aria-label="Settings">⚙</button>
+<button id="audio-btn" title="Sound" aria-label="Sound">🔊</button>
+<div id="audio-panel">
+  <div id="audio-panel-label">Sound</div>
+  <div id="audio-panel-row">
+    <button id="audio-mute-btn" title="Mute" aria-label="Mute">🔊</button>
+    <input type="range" id="audio-volume" min="0" max="100" value="70" aria-label="Volume" />
+  </div>
+</div>
+<div id="alarm-toast"></div>
 
 <div id="main">
   <div id="dial-wrap">
@@ -334,6 +396,19 @@
         </div>
         <div class="row" style="gap: 6px;">
           <button class="ctl" id="change-location-btn" title="Change the location Sky View uses">Change Location</button>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div>
+          <label>Alarms</label>
+          <div id="alarm-list">
+            <label><input type="checkbox" id="alarm-jupiter" /> Jupiter visible in night sky</label>
+            <label><input type="checkbox" id="alarm-saturn" /> Saturn visible in night sky</label>
+            <label><input type="checkbox" id="alarm-solar-eclipse" /> Solar eclipse</label>
+            <label><input type="checkbox" id="alarm-lunar-eclipse" /> Lunar eclipse</label>
+          </div>
+          <div id="alarm-hint">Chimes a bell three times, checked against real time and your location -- leave this tab open to be alerted.</div>
         </div>
       </div>
 
@@ -2833,6 +2908,191 @@ dial.addEventListener('wheel', e => {
   skyView.zoom = Math.max(1, Math.min(8, skyView.zoom * factor));
   scheduleSkyRender();
 }, { passive: false });
+
+// ─────────────────────────────────────────────────────────────────────────
+// Audio -- volume/mute button next to Settings, and the bell chime alarms
+// below use. Synthesized via Web Audio (a few sine partials at bell-like
+// overtone ratios with a fast attack/exponential decay) rather than a
+// shipped audio file, keeping this a single self-contained HTML file.
+// ─────────────────────────────────────────────────────────────────────────
+let audioCtx = null;
+let audioVolume = parseInt(localStorage.getItem('antikythera-audio-volume') || '70', 10);
+let audioMuted = localStorage.getItem('antikythera-audio-muted') === 'true';
+
+// Browsers only allow an AudioContext to actually produce sound once it's
+// been created/resumed during a user gesture -- calling this from the
+// audio button's own click (and from the alarm checkboxes' change events)
+// unlocks it early, so a later programmatic chime (fired from setInterval,
+// with no gesture of its own) is still allowed to play.
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+// One bell strike: four sine partials at rough bell-overtone ratios
+// (fundamental, octave, ~major third above that, two octaves), each with
+// an instant attack and its own exponential decay -- the mix of
+// non-harmonic-ish partials dying at the same rate is what reads as a
+// struck bell rather than a pure, flute-like tone.
+function playBellOnce(ctx, when, gain) {
+  const partials = [1, 2.0, 2.76, 4.0];
+  partials.forEach((mult, i) => {
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = 660 * mult;
+    const g = ctx.createGain();
+    const amp = (i === 0 ? 0.5 : 0.16 / mult) * gain;
+    g.gain.setValueAtTime(0, when);
+    g.gain.linearRampToValueAtTime(amp, when + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + 1.3);
+    osc.connect(g);
+    g.connect(ctx.destination);
+    osc.start(when);
+    osc.stop(when + 1.4);
+  });
+}
+
+function chimeBell(times = 3) {
+  if (audioMuted || audioVolume <= 0) return;
+  const ctx = getAudioCtx();
+  const gain = audioVolume / 100;
+  const now = ctx.currentTime;
+  for (let i = 0; i < times; i++) playBellOnce(ctx, now + i * 0.85, gain);
+}
+
+const audioBtn = document.getElementById('audio-btn');
+const audioPanel = document.getElementById('audio-panel');
+const audioMuteBtn = document.getElementById('audio-mute-btn');
+const audioVolumeInput = document.getElementById('audio-volume');
+audioVolumeInput.value = audioVolume;
+
+function updateAudioUI() {
+  const silent = audioMuted || audioVolume <= 0;
+  audioMuteBtn.textContent = audioMuted ? '🔇' : '🔊';
+  audioMuteBtn.classList.toggle('active', audioMuted);
+  audioBtn.textContent = silent ? '🔇' : '🔊';
+  audioBtn.classList.toggle('active', audioPanel.classList.contains('open'));
+}
+updateAudioUI();
+
+audioBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  audioPanel.classList.toggle('open');
+  updateAudioUI();
+  getAudioCtx();
+});
+document.addEventListener('click', e => {
+  if (audioPanel.classList.contains('open') && !audioPanel.contains(e.target) && e.target !== audioBtn) {
+    audioPanel.classList.remove('open');
+    updateAudioUI();
+  }
+});
+audioMuteBtn.addEventListener('click', () => {
+  audioMuted = !audioMuted;
+  localStorage.setItem('antikythera-audio-muted', String(audioMuted));
+  updateAudioUI();
+});
+audioVolumeInput.addEventListener('input', () => {
+  audioVolume = parseInt(audioVolumeInput.value, 10);
+  localStorage.setItem('antikythera-audio-volume', String(audioVolume));
+  updateAudioUI();
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// Alarms -- Jupiter/Saturn visible in the night sky, solar/lunar eclipse.
+// Checked against the REAL current moment (device clock), not the
+// orrery's own simulated currentDate, since the point is alerting someone
+// to what's actually happening outside right now; the app just needs to
+// stay open in a tab for the periodic check to keep running.
+// ─────────────────────────────────────────────────────────────────────────
+const ALARM_DEFS = [
+  { key: 'jupiter', label: 'Jupiter is visible in the night sky', emoji: '♃', needsLocation: true },
+  { key: 'saturn', label: 'Saturn is visible in the night sky', emoji: '♄', needsLocation: true },
+  { key: 'solarEclipse', label: 'A solar eclipse is happening now', emoji: '☉', needsLocation: false },
+  { key: 'lunarEclipse', label: 'A lunar eclipse is happening now', emoji: '☾', needsLocation: false },
+];
+
+let alarms = { jupiter: false, saturn: false, solarEclipse: false, lunarEclipse: false };
+try { alarms = Object.assign(alarms, JSON.parse(localStorage.getItem('antikythera-alarms') || '{}')); } catch (e) { /* keep defaults */ }
+
+const alarmCheckboxes = {
+  jupiter: document.getElementById('alarm-jupiter'),
+  saturn: document.getElementById('alarm-saturn'),
+  solarEclipse: document.getElementById('alarm-solar-eclipse'),
+  lunarEclipse: document.getElementById('alarm-lunar-eclipse'),
+};
+Object.keys(alarmCheckboxes).forEach(key => { alarmCheckboxes[key].checked = !!alarms[key]; });
+
+Object.keys(alarmCheckboxes).forEach(key => {
+  alarmCheckboxes[key].addEventListener('change', e => {
+    alarms[key] = e.target.checked;
+    localStorage.setItem('antikythera-alarms', JSON.stringify(alarms));
+    getAudioCtx(); // unlock audio on this gesture too, in case the volume panel was never opened
+    const def = ALARM_DEFS.find(a => a.key === key);
+    if (e.target.checked && def.needsLocation && !observerLoc) ensureLocation(() => {});
+    primeAlarmState(); // re-baseline so an alarm that's already true when enabled doesn't fire immediately
+  });
+});
+
+// Real Alt/Az for Jupiter/Saturn and the eclipse-season check, evaluated at
+// an arbitrary real-world date -- independent of the orrery's own
+// heliocentric-diagram state (positions/earth/T computed in render()).
+function computeAlarmConditions(date) {
+  const JD = toJulianDate(date);
+  const T = (JD - 2451545.0) / 36525;
+  const earthPos = heliocentric(PLANETS.find(p => p.name === 'Earth'), T);
+  const sunGeoLon = normDeg(earthPos.lon + 180);
+  const eclipseType = eclipseTypeAt(date, sunGeoLon);
+
+  let jupiterVisible = false, saturnVisible = false;
+  if (observerLoc) {
+    const lstDeg = localSiderealTimeDeg(JD, observerLoc.lon);
+    const sunEq = eclipticToEquatorial(sunGeoLon, 0);
+    const sunAlt = altAzFromEq(sunEq.raDeg, sunEq.decDeg, observerLoc.lat, lstDeg).altDeg;
+    if (sunAlt < 0) {
+      const jupiterEq = geocentricEquatorial(heliocentric(PLANETS.find(p => p.name === 'Jupiter'), T), earthPos);
+      jupiterVisible = altAzFromEq(jupiterEq.raDeg, jupiterEq.decDeg, observerLoc.lat, lstDeg).altDeg > 0;
+      const saturnEq = geocentricEquatorial(heliocentric(PLANETS.find(p => p.name === 'Saturn'), T), earthPos);
+      saturnVisible = altAzFromEq(saturnEq.raDeg, saturnEq.decDeg, observerLoc.lat, lstDeg).altDeg > 0;
+    }
+  }
+
+  return {
+    jupiter: jupiterVisible,
+    saturn: saturnVisible,
+    solarEclipse: eclipseType === 'solar',
+    lunarEclipse: eclipseType === 'lunar',
+  };
+}
+
+let alarmLastState = {};
+function primeAlarmState() { alarmLastState = computeAlarmConditions(new Date()); }
+primeAlarmState();
+
+const alarmToast = document.getElementById('alarm-toast');
+alarmToast.addEventListener('click', () => alarmToast.classList.remove('show'));
+function showAlarmToast(text) {
+  alarmToast.textContent = text;
+  alarmToast.classList.add('show');
+  clearTimeout(showAlarmToast._t);
+  showAlarmToast._t = setTimeout(() => alarmToast.classList.remove('show'), 8000);
+}
+
+// Fires only on a false->true transition of each condition, so a still-true
+// condition doesn't re-chime on every check -- only once per rising edge.
+function checkAlarms() {
+  const conditions = computeAlarmConditions(new Date());
+  ALARM_DEFS.forEach(({ key, label, emoji }) => {
+    const isOn = conditions[key];
+    if (alarms[key] && isOn && !alarmLastState[key]) {
+      chimeBell(3);
+      showAlarmToast(`${emoji} ${label}`);
+    }
+    alarmLastState[key] = isOn;
+  });
+}
+setInterval(checkAlarms, 60000);
 
 setDate(new Date());
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(render);
