@@ -639,27 +639,53 @@ const CONJUNCTION_THRESHOLD_DEG = 4;
 // A real alignment window is often only a couple of REAL SECONDS wide at
 // fast playback speeds (e.g. 1 hour/sec -- Io and Europa's relative motion
 // alone chews through the whole +/-4deg window in well under a simulated
-// day), too brief to reliably notice. Rather than tying visibility 1:1 to
-// the alignment's own duration, each pair gets a floor: once triggered,
-// it stays marked "held" for at least MIN_HOLD_MS of real wall-clock time,
-// continuously refreshed while still actually aligned, so fast playback
-// can't make an event flash by in a fraction of a second.
-const MIN_HOLD_MS = 1100;
+// day), too brief for a pulse to visibly rise and fall in. So rather than
+// a flat on/off flag, each pair tracks the closest approach (smallest
+// separation) seen during its current pass through the window -- that
+// moment becomes the pulse's PEAK, placed HALF_WINDOW_MS in the future
+// from whenever it was last improved upon (still-improving samples keep
+// pushing the peak later, so a slow real-time approach just sustains at
+// the peak rather than getting cut off). The result is a real-wall-clock
+// triangular envelope, equal HALF_WINDOW_MS buffer rising into the peak
+// and falling out of it, centered on the true closest approach regardless
+// of how few (or many) frames actually landed inside the alignment window.
+const HALF_WINDOW_MS = 550;
 
 function moonAngleDeg(moon, JD) { return normDeg(galileanCycles(moon, JD) * 360); }
 
-let pairHeldUntil = {}; // "i-j" -> wall-clock ms until which the pair should still read as active
+let pairEpisode = {}; // "i-j" -> { bestSep, peakAt } -- peakAt is a wall-clock ms timestamp
 function updateGalileanResonance(JD) {
   const now = performance.now();
   RESONANT_PAIRS.forEach(([i, j]) => {
     const key = i + '-' + j;
+    const ep = pairEpisode[key] || (pairEpisode[key] = { bestSep: Infinity, peakAt: -Infinity });
     const sep = angleSeparation(moonAngleDeg(GALILEAN_MOONS[i], JD), moonAngleDeg(GALILEAN_MOONS[j], JD));
-    if (sep < CONJUNCTION_THRESHOLD_DEG) pairHeldUntil[key] = now + MIN_HOLD_MS;
+    if (sep < CONJUNCTION_THRESHOLD_DEG && sep < ep.bestSep) {
+      ep.bestSep = sep;
+      ep.peakAt = now + HALF_WINDOW_MS;
+    } else if (now > ep.peakAt + HALF_WINDOW_MS) {
+      // Fully decayed and not currently improving -- clear it so the next
+      // approach starts its own fresh peak search instead of comparing
+      // against a stale minimum from the last conjunction.
+      ep.bestSep = Infinity;
+    }
   });
 }
+function pairPulseIntensity(key) {
+  const ep = pairEpisode[key];
+  if (!ep) return 0;
+  const dt = Math.abs(performance.now() - ep.peakAt);
+  return dt > HALF_WINDOW_MS ? 0 : 1 - dt / HALF_WINDOW_MS;
+}
 function heldGalileanPairs() {
-  const now = performance.now();
-  return RESONANT_PAIRS.filter(([i, j]) => (pairHeldUntil[i + '-' + j] || 0) > now);
+  return RESONANT_PAIRS.filter(([i, j]) => pairPulseIntensity(i + '-' + j) > 0);
+}
+// A moon can belong to two resonant pairs (Europa sits in both) -- its
+// pulse takes whichever pair's envelope is currently stronger.
+function moonPulseIntensity(idx) {
+  return RESONANT_PAIRS
+    .filter(([i, j]) => i === idx || j === idx)
+    .reduce((max, [i, j]) => Math.max(max, pairPulseIntensity(i + '-' + j)), 0);
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -1088,7 +1114,7 @@ let lastJD = null, lastPositions = null, lastEarth = null;
 // four Galilean moons. jovianT() is a real-wall-clock eased progress value
 // (0 = ordinary dial, 1 = fully zoomed in) rather than a per-frame step, so
 // it reads correctly no matter how often render() happens to be called --
-// same pattern as the resonance glow's MIN_HOLD_MS timer above.
+// same pattern as the resonance glow's pulse envelope above.
 let jovianViewActive = false;
 let jovianAnimFrom = 0, jovianAnimTo = 0, jovianAnimStart = 0;
 const JOVIAN_ANIM_MS = 550;
@@ -1717,13 +1743,6 @@ function drawGalileanStrip(c, cx, cy, jupiterPos, JD, th) {
   c.save();
   c.translate(cx, cy);
 
-  // Which moons belong to a currently-held pair (see
-  // updateGalileanResonance/heldGalileanPairs) -- held rather than merely
-  // "aligned right now" so the glow can't flash by in under a real second
-  // at fast playback speeds.
-  const heldMoons = new Set();
-  heldGalileanPairs().forEach(([i, j]) => { heldMoons.add(i); heldMoons.add(j); });
-
   const maxDist = GALILEAN_MOONS[GALILEAN_MOONS.length - 1].distR;
   GALILEAN_MOONS.forEach((m, idx) => {
     // sqrt rather than the real linear distance ratio -- linear compressed
@@ -1751,14 +1770,15 @@ function drawGalileanStrip(c, cx, cy, jupiterPos, JD, th) {
     c.fillStyle = m.color; c.fill();
     c.strokeStyle = th.metalDeepest; c.lineWidth = 0.6; c.stroke();
 
-    // Breathing glow, held for at least MIN_HOLD_MS real time so it's
-    // still legible even when the underlying alignment window itself is
-    // only a real second or two wide at fast playback.
-    if (heldMoons.has(idx)) {
-      const breathe = 0.5 + 0.5 * Math.sin(performance.now() / 220);
-      c.beginPath(); c.arc(x, y, m.dotR + 2 + breathe * 1.8, 0, 2 * Math.PI);
-      c.strokeStyle = `rgba(255,244,214,${(0.45 + breathe * 0.45).toFixed(3)})`;
-      c.lineWidth = 1.2 + breathe * 0.7;
+    // Glow sized by the pulse envelope itself (see updateGalileanResonance/
+    // pairPulseIntensity) -- it grows toward its peak at the moment of
+    // closest approach, then shrinks back down, rather than snapping to a
+    // fixed size for as long as the pair counts as "aligned."
+    const pulse = moonPulseIntensity(idx);
+    if (pulse > 0) {
+      c.beginPath(); c.arc(x, y, m.dotR + 1.5 + pulse * 4, 0, 2 * Math.PI);
+      c.strokeStyle = `rgba(255,244,214,${(0.2 + pulse * 0.65).toFixed(3)})`;
+      c.lineWidth = 0.8 + pulse * 1.8;
       c.stroke();
     }
   });
@@ -2006,9 +2026,6 @@ function drawJovianView(c, originX, originY, scale, alpha, JD, th) {
   c.translate(originX, originY);
   c.scale(scale, scale);
 
-  const heldMoons = new Set();
-  heldGalileanPairs().forEach(([i, j]) => { heldMoons.add(i); heldMoons.add(j); });
-
   GALILEAN_MOONS.forEach(m => {
     c.beginPath();
     c.arc(0, 0, JOVIAN_ORBIT_R[m.name], 0, 2 * Math.PI);
@@ -2046,11 +2063,11 @@ function drawJovianView(c, originX, originY, scale, alpha, JD, th) {
     c.fillStyle = m.color; c.fill();
     c.strokeStyle = th.metalDeepest; c.lineWidth = 1; c.stroke();
 
-    if (heldMoons.has(idx)) {
-      const breathe = 0.5 + 0.5 * Math.sin(performance.now() / 220);
-      c.beginPath(); c.arc(x, y, dotR + 4 + breathe * 3, 0, 2 * Math.PI);
-      c.strokeStyle = `rgba(255,244,214,${(0.45 + breathe * 0.45).toFixed(3)})`;
-      c.lineWidth = 2 + breathe * 1.2;
+    const pulse = moonPulseIntensity(idx);
+    if (pulse > 0) {
+      c.beginPath(); c.arc(x, y, dotR + 3 + pulse * 7, 0, 2 * Math.PI);
+      c.strokeStyle = `rgba(255,244,214,${(0.2 + pulse * 0.65).toFixed(3)})`;
+      c.lineWidth = 1.4 + pulse * 3;
       c.stroke();
     }
 
