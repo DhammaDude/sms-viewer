@@ -941,35 +941,55 @@ const jumpRetrogradeBtn = document.getElementById('jump-retrograde-btn');
 jumpNewMoonBtn.addEventListener('click', () => setDate(nextPhaseDate(currentDate, 0)));
 jumpFullMoonBtn.addEventListener('click', () => setDate(nextPhaseDate(currentDate, 0.5)));
 
+// window.alert() is unreliable in embedded/sandboxed webviews (same reason
+// established elsewhere in this file) -- these "not found" fallbacks are
+// rare in practice, so rather than building a modal for them, they just
+// report through the almanac line instead of a blocking dialog.
 jumpSolarEclipseBtn.addEventListener('click', () => {
   const result = findNextEclipse(currentDate, sunLonAtDate, 'solar');
   if (result) setDate(result.date);
-  else alert('No solar eclipse found in the next ~5 years from this date.');
+  else almanacLine.textContent = 'No solar eclipse found in the next ~5 years from this date.';
 });
 
 jumpLunarEclipseBtn.addEventListener('click', () => {
   const result = findNextEclipse(currentDate, sunLonAtDate, 'lunar');
   if (result) setDate(result.date);
-  else alert('No lunar eclipse found in the next ~5 years from this date.');
+  else almanacLine.textContent = 'No lunar eclipse found in the next ~5 years from this date.';
 });
 
+// Used to require a non-Earth planet to already be selected, failing via
+// alert() (unreliable in embedded webviews, so this was silently a no-op
+// there) if not -- and nothing is selected by default on a fresh load, so
+// this was the first thing a lot of people would hit. Now searches the
+// selected planet if there is one, otherwise every planet at once and
+// jumps to whichever goes retrograde soonest, selecting it in the process
+// so the result is self-explanatory either way.
 jumpRetrogradeBtn.addEventListener('click', () => {
-  const planet = PLANETS.find(p => p.name === selected);
-  if (!planet || planet.name === 'Earth') {
-    alert('Select a planet other than Earth first, then try again.');
-    return;
+  const selectedPlanet = PLANETS.find(p => p.name === selected && p.name !== 'Earth');
+  const candidates = selectedPlanet ? [selectedPlanet] : PLANETS.filter(p => p.name !== 'Earth');
+
+  let best = null;
+  candidates.forEach(planet => {
+    const JD0 = toJulianDate(currentDate);
+    let wasRetro = isRetrograde(planet, (JD0 - 2451545.0) / 36525);
+    for (let i = 1; i <= 2000; i++) {
+      const d = new Date(currentDate.getTime() + i * 86400000);
+      const T = (toJulianDate(d) - 2451545.0) / 36525;
+      const nowRetro = isRetrograde(planet, T);
+      if (nowRetro && !wasRetro) {
+        if (!best || d < best.date) best = { date: d, planet };
+        break;
+      }
+      wasRetro = nowRetro;
+    }
+  });
+
+  if (best) {
+    selected = best.planet.name;
+    setDate(best.date);
+  } else {
+    almanacLine.textContent = "Couldn't find a retrograde in the next ~5 years.";
   }
-  let d = currentDate;
-  const JD0 = toJulianDate(d);
-  let wasRetro = isRetrograde(planet, (JD0 - 2451545.0) / 36525);
-  for (let i = 1; i <= 2000; i++) {
-    d = new Date(currentDate.getTime() + i * 86400000);
-    const T = (toJulianDate(d) - 2451545.0) / 36525;
-    const nowRetro = isRetrograde(planet, T);
-    if (nowRetro && !wasRetro) { setDate(d); return; }
-    wasRetro = nowRetro;
-  }
-  alert(`Couldn't find a ${planet.name} retrograde in the next ~5 years.`);
 });
 
 // Calendar fields (day-of-year, the date picker, weekday/date readouts) use
