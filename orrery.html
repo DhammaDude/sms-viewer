@@ -503,11 +503,15 @@ const ZODIAC = ['♈ Aries','♉ Taurus','♊ Gemini','♋ Cancer','♌ Leo','�
 // J2000.0 reference epoch, which is a fixed illustrative alignment rather
 // than a precision-ephemeris fit (the same level of approximation the rest
 // of this app's Keplerian elements use for the planets themselves).
+// dotR follows each moon's real equatorial diameter (Io 3643km, Europa
+// 3122km, Ganymede 5268km, Callisto 4821km) scaled to a small, still legible
+// pixel range -- Ganymede (the largest moon in the solar system) reads as
+// the biggest dot, Europa (smallest of the four) the smallest.
 const GALILEAN_MOONS = [
-  { name: 'Io',       period: 1.769138,  distR: 5.9,  phase0: 0.15, color: '#e8c15a' },
-  { name: 'Europa',   period: 3.551181,  distR: 9.4,  phase0: 0.62, color: '#cbb7e0' },
-  { name: 'Ganymede', period: 7.154553,  distR: 15.0, phase0: 0.08, color: '#d99a6c' },
-  { name: 'Callisto', period: 16.689018, distR: 26.3, phase0: 0.41, color: '#8fb7c9' },
+  { name: 'Io',       period: 1.769138,  distR: 5.9,  phase0: 0.15, color: '#e8c15a', dotR: 2.1 },
+  { name: 'Europa',   period: 3.551181,  distR: 9.4,  phase0: 0.62, color: '#cbb7e0', dotR: 1.9 },
+  { name: 'Ganymede', period: 7.154553,  distR: 15.0, phase0: 0.08, color: '#d99a6c', dotR: 2.9 },
+  { name: 'Callisto', period: 16.689018, distR: 26.3, phase0: 0.41, color: '#8fb7c9', dotR: 2.7 },
 ];
 
 function galileanOffset(moon, JD) {
@@ -1473,17 +1477,24 @@ function drawArcText(c, cx, cy, radius, text, centerAngleDeg, spreadDeg, color, 
 function drawGalileanStrip(c, cx, cy, jupiterPos, JD, th) {
   const rr = scaleR(jupiterPos.r);
   const lon = jupiterPos.lon;
-  const span = 26; // degrees of ecliptic longitude the moons' wobble covers
+  const span = 46; // degrees of ecliptic longitude the moons' wobble covers
 
   c.save();
   c.translate(cx, cy);
 
   const maxDist = GALILEAN_MOONS[GALILEAN_MOONS.length - 1].distR;
   GALILEAN_MOONS.forEach(m => {
-    const off = galileanOffset(m, JD) * (m.distR / maxDist) * (span / 2) * 0.85;
+    // sqrt rather than the real linear distance ratio -- linear compressed
+    // the three inner moons into a tight clump right at Jupiter's own
+    // marker (Io's full swing was under 6px, barely wider than its own
+    // dot), even though they were technically never overlapping. sqrt
+    // keeps the correct relative order (Io swings least, Callisto most)
+    // while giving the inner moons enough room to read as separate.
+    const ampFrac = Math.sqrt(m.distR / maxDist);
+    const off = galileanOffset(m, JD) * ampFrac * (span / 2) * 0.85;
     const a = deg2rad(lon + off);
     const x = Math.cos(a) * rr, y = -Math.sin(a) * rr;
-    c.beginPath(); c.arc(x, y, 2.4, 0, 2 * Math.PI);
+    c.beginPath(); c.arc(x, y, m.dotR, 0, 2 * Math.PI);
     c.fillStyle = m.color; c.fill();
     c.strokeStyle = th.metalDeepest; c.lineWidth = 0.6; c.stroke();
   });
