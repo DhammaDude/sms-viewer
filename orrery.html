@@ -333,6 +333,10 @@
           <div class="row">
             <button class="ctl" id="play-btn">▶ Play</button>
             <select id="speed-select">
+              <option value="1000">Real-time</option>
+              <option value="60000">1 minute / sec</option>
+              <option value="600000">10 minutes / sec</option>
+              <option value="3600000">1 hour / sec</option>
               <option value="86400000" selected>1 day / sec</option>
               <option value="604800000">1 week / sec</option>
               <option value="2629800000">1 month / sec</option>
@@ -2281,11 +2285,19 @@ document.getElementById('location-modal-use').addEventListener('click', () => {
 // for what used to be a toolbar button -- icon-only, so state is carried
 // by the .active glow plus the title/aria-label rather than button text.
 const skyViewToggleBtn = document.getElementById('sky-view-crown');
+// Above this, Earth's own rotation (~once per simulated day) turns Play
+// into a spinning blur in Sky View rather than watching anything rise or
+// set -- so entering Sky View at a faster speed drops it to this, and
+// leaving restores whatever speed was set before, so the orrery view's
+// choice isn't clobbered by a Sky View visit.
+const SKY_VIEW_MAX_SENSIBLE_SPEED = 3600000; // 1 hour/sec
+let preSkyViewSpeed = null;
 skyViewToggleBtn.addEventListener('click', () => {
   if (skyViewActive) {
     skyViewActive = false;
     skyViewToggleBtn.classList.remove('active');
     skyViewToggleBtn.title = skyViewToggleBtn.ariaLabel = 'Show the sky as seen from your location';
+    if (preSkyViewSpeed !== null) { speedSelect.value = preSkyViewSpeed; preSkyViewSpeed = null; }
     render();
   } else {
     ensureLocation(() => {
@@ -2293,6 +2305,10 @@ skyViewToggleBtn.addEventListener('click', () => {
       skyViewActive = true;
       skyViewToggleBtn.classList.add('active');
       skyViewToggleBtn.title = skyViewToggleBtn.ariaLabel = 'Return to the orrery view';
+      if (Number(speedSelect.value) > SKY_VIEW_MAX_SENSIBLE_SPEED) {
+        preSkyViewSpeed = speedSelect.value;
+        speedSelect.value = SKY_VIEW_MAX_SENSIBLE_SPEED;
+      }
       render();
     });
   }
