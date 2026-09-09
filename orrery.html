@@ -4321,7 +4321,7 @@ function drawTangentLabel(c, cx, cy, r, phiDeg, text, color, font) {
 // the Moon dial, mirrors AI; MO, nearer this wing's own tip, mirrors AO.
 function drawMetonicDial(c, CX, CY, year, th) {
   const MO = 50, MI = 70;
-  const rIn = 490, rOut = 530;
+  const rIn = 470, rOut = 535;
 
   function sector(a0Deg, a1Deg, r0, r1) {
     c.beginPath();
@@ -4349,9 +4349,9 @@ function drawMetonicDial(c, CX, CY, year, th) {
   // progress track: a dim full track, with the elapsed portion lit bright
   const trackR = (rIn + rOut) / 2;
   c.beginPath(); c.arc(CX, CY, trackR, deg2rad(A0), deg2rad(A1));
-  c.strokeStyle = th.metalDark; c.lineWidth = 5; c.stroke();
+  c.strokeStyle = th.metalDark; c.lineWidth = 6; c.stroke();
   c.beginPath(); c.arc(CX, CY, trackR, deg2rad(angleFor(year)), deg2rad(A1));
-  c.strokeStyle = th.metalBright; c.lineWidth = 5; c.stroke();
+  c.strokeStyle = th.metalBright; c.lineWidth = 6; c.stroke();
 
   // tick marks + numerals at 1, 5, 10, 15, 19
   [1, 5, 10, 15, 19].forEach(y => {
@@ -4361,27 +4361,27 @@ function drawMetonicDial(c, CX, CY, year, th) {
     c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1);
     c.strokeStyle = th.metalMid; c.lineWidth = 1; c.stroke();
   });
-  drawTangentLabel(c, CX, CY, rIn - 11, angleFor(1), '1', th.subdialDim, '600 10px Cinzel, serif');
-  drawTangentLabel(c, CX, CY, rIn - 11, angleFor(5), '5', th.subdialDim, '600 10px Cinzel, serif');
-  drawTangentLabel(c, CX, CY, rIn - 11, angleFor(10), '10', th.subdialDim, '600 10px Cinzel, serif');
-  drawTangentLabel(c, CX, CY, rIn - 11, angleFor(15), '15', th.subdialDim, '600 10px Cinzel, serif');
-  drawTangentLabel(c, CX, CY, rIn - 11, angleFor(19), '19', th.subdialDim, '600 10px Cinzel, serif');
+  drawTangentLabel(c, CX, CY, rIn - 10, angleFor(1), '1', th.dateWindowText, '600 11px Cinzel, serif');
+  drawTangentLabel(c, CX, CY, rIn - 10, angleFor(5), '5', th.dateWindowText, '600 11px Cinzel, serif');
+  drawTangentLabel(c, CX, CY, rIn - 10, angleFor(10), '10', th.dateWindowText, '600 11px Cinzel, serif');
+  drawTangentLabel(c, CX, CY, rIn - 10, angleFor(15), '15', th.dateWindowText, '600 11px Cinzel, serif');
+  drawTangentLabel(c, CX, CY, rIn - 10, angleFor(19), '19', th.dateWindowText, '600 11px Cinzel, serif');
 
   // current-year marker, echoing the old gauge's hand
   const na = deg2rad(angleFor(year));
-  c.beginPath(); c.arc(CX + Math.cos(na) * trackR, CY + Math.sin(na) * trackR, 4, 0, 2 * Math.PI);
+  c.beginPath(); c.arc(CX + Math.cos(na) * trackR, CY + Math.sin(na) * trackR, 5, 0, 2 * Math.PI);
   c.fillStyle = th.accentHand; c.fill();
   c.strokeStyle = th.metalDeepest; c.lineWidth = 1; c.stroke();
 
-  drawArcTextPhi(c, CX, CY, rOut + 11, 'METONIC CYCLE', (MO + MI) / 2, MI - MO, th.subdialDim, '11px "Cormorant Garamond", serif');
+  drawArcTextPhi(c, CX, CY, rOut + 9, 'METONIC CYCLE', (MO + MI) / 2, MI - MO, th.dateWindowText, '10px "Cormorant Garamond", serif');
 
   // small rivets at the band's outer corners, matching the Day-Date band
   [MO, MI].forEach(phiDeg => {
     const p = deg2rad(phiDeg);
     const rx = CX + Math.cos(p) * (rOut - 6), ry = CY + Math.sin(p) * (rOut - 6);
-    c.beginPath(); c.arc(rx, ry, 2.2, 0, 2 * Math.PI);
+    c.beginPath(); c.arc(rx, ry, 2.6, 0, 2 * Math.PI);
     c.fillStyle = th.metalDeepest; c.fill();
-    c.beginPath(); c.arc(rx - 0.6, ry - 0.6, 0.8, 0, 2 * Math.PI);
+    c.beginPath(); c.arc(rx - 0.7, ry - 0.7, 0.9, 0, 2 * Math.PI);
     c.fillStyle = 'rgba(255,255,255,0.5)'; c.fill();
   });
 }
@@ -4419,7 +4419,7 @@ function drawArcTextPhi(c, cx, cy, r, text, centerPhiDeg, spreadDeg, color, font
 // at 136 so the band doesn't run right up to that edge.
 function drawDayDateDial(c, CX, CY, weekday, dateStr, year, th) {
   const AI = 110, AD = 121, AO = 130; // inner limit / weekday-date divider / outer limit -- pulled AO in from the shield's own 136 riser for clearance
-  const rIn = 490, rOut = 530;
+  const rIn = 470, rOut = 535;
 
   function sector(a0Deg, a1Deg, r0, r1) {
     c.beginPath();
@@ -4449,19 +4449,19 @@ function drawDayDateDial(c, CX, CY, weekday, dateStr, year, th) {
   c.strokeStyle = th.metalDeepest; c.lineWidth = 1; c.stroke();
 
   const midR = (rIn + rOut) / 2;
-  drawArcTextPhi(c, CX, CY, midR, weekday, (AI + AD) / 2, (AD - AI) * 0.68, th.dateWindowText, '600 13px Cinzel, serif');
-  drawArcTextPhi(c, CX, CY, midR, dateStr, (AD + AO) / 2, (AO - AD) * 0.72, th.dateWindowText, '600 12px Cinzel, serif');
+  drawArcTextPhi(c, CX, CY, midR, weekday, (AI + AD) / 2, (AD - AI) * 0.6, th.dateWindowText, '600 14px Cinzel, serif');
+  drawArcTextPhi(c, CX, CY, midR, dateStr, (AD + AO) / 2, (AO - AD) * 0.64, th.dateWindowText, '600 13px Cinzel, serif');
 
-  drawArcTextPhi(c, CX, CY, rOut + 11, 'DAY' + '  ' + 'DATE', (AI + AO) / 2, AO - AI, th.subdialDim, '11px "Cormorant Garamond", serif');
-  drawArcTextPhi(c, CX, CY, rIn - 11, 'A.D. ' + year, (AI + AO) / 2, (AO - AI) * 0.55, th.subdialDim, '10px "Cormorant Garamond", serif');
+  drawArcTextPhi(c, CX, CY, rOut + 9, 'DAY' + '  ' + 'DATE', (AI + AO) / 2, AO - AI, th.dateWindowText, '10px "Cormorant Garamond", serif');
+  drawArcTextPhi(c, CX, CY, rIn - 10, 'A.D. ' + year, (AI + AO) / 2, (AO - AI) * 0.55, th.dateWindowText, '11px "Cormorant Garamond", serif');
 
   // small rivets at the band's outer corners, echoing the shield's own rivets
   [AI, AO].forEach(phiDeg => {
     const p = deg2rad(phiDeg);
     const rx = CX + Math.cos(p) * (rOut - 6), ry = CY + Math.sin(p) * (rOut - 6);
-    c.beginPath(); c.arc(rx, ry, 2.2, 0, 2 * Math.PI);
+    c.beginPath(); c.arc(rx, ry, 2.6, 0, 2 * Math.PI);
     c.fillStyle = th.metalDeepest; c.fill();
-    c.beginPath(); c.arc(rx - 0.6, ry - 0.6, 0.8, 0, 2 * Math.PI);
+    c.beginPath(); c.arc(rx - 0.7, ry - 0.7, 0.9, 0, 2 * Math.PI);
     c.fillStyle = 'rgba(255,255,255,0.5)'; c.fill();
   });
 }
