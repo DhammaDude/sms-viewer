@@ -4007,13 +4007,17 @@ const SHIELD_TIP_DEG = 20; // how far up either side the wings climb (0=diameter
 // more visible stair-stepping between the named complications; only the
 // Metonic/Moon/Day-Date tiers need to be tall enough to actually frame their
 // dial. Overall peak height is lower than before, for a smaller plate.
+// Moon plateau (and its flanking rise steps) grew from 200/180 to 236/216
+// to clear the sun-position ring added around the Moon dial's own rim --
+// at the old height the ring's outer edge landed inside the plateau's own
+// fluted trim instead of inside its flat face.
 const SHIELD_STEPS = [
   [33, 0],     // flush with the case out to here
   [44, 55],    // shoulder
   [59, 160],   // Metonic plateau
-  [72, 180],   // rise
-  [108, 200],  // Moon plateau (peak, centered on the bottom pole)
-  [121, 180],  // rise (mirrored)
+  [72, 216],   // rise
+  [108, 236],  // Moon plateau (peak, centered on the bottom pole)
+  [121, 216],  // rise (mirrored)
   [136, 160],  // Day-Date plateau
   [147, 55],   // shoulder (mirrored)
   [180, 0],    // flush with the case from here to the far wingtip
@@ -4196,9 +4200,11 @@ function drawMoonPhase(c, cx, cy, r, phase, signIndex, th) {
 // Twin-Pip sun-position ring around the Moon Phase dial's own rim: two
 // brass pips mark today's real sunrise/sunset compass bearings for the
 // observer's location (sunRiseSetToday), a faint gold arc traces the
-// daylight span between them, and a small sun glyph rides the ring at the
-// sun's actual current azimuth while it's above the horizon, fading out
-// (rather than snapping off) through the last few degrees of twilight.
+// daylight span between them, and a small sun glyph rides the ring at
+// the sun's actual current azimuth all the way around -- including the
+// dark side, where it cools to a muted slate rather than disappearing,
+// so the glyph always shows exactly where the sun really is, day or
+// night, warming back to full gold through twilight into daylight.
 // Ring angle is a direct compass-bearing map -- mathAngle = 270 - azimuth
 // -- so the sun rises on the dial's left, climbs to the top at
 // culmination (true south, for a northern-hemisphere observer), and sets
@@ -4254,19 +4260,24 @@ function drawSunPositionRing(c, cx, cy, r, sunGeoLon, JD, currentDateParam, th) 
     });
   }
 
+  // The glyph travels the whole ring, day and night -- below the horizon
+  // it dims and cools toward a muted slate (still tracking where the sun
+  // actually is, just not lit), warming back to full gold through
+  // twilight into daylight, rather than disappearing on the dark side.
   const sunNow = sunAltAzFor(sunGeoLon, JD);
-  if (sunNow && sunNow.altDeg > -6) {
+  if (sunNow) {
     const a = mathAngleFor(sunNow.azDeg);
     const x = Math.cos(a) * ringR, y = -Math.sin(a) * ringR;
-    const alpha = Math.max(0, Math.min(1, sunNow.altDeg / 6));
+    const t = Math.max(0, Math.min(1, (sunNow.altDeg + 12) / 24));
+    const glyphColor = lerpColor('#5c6a78', '#f7d896', t);
     c.save();
-    c.globalAlpha = alpha;
-    c.shadowColor = '#f7d896';
-    c.shadowBlur = 6;
-    c.fillStyle = '#f7d896';
+    c.globalAlpha = 0.55 + 0.45 * t;
+    c.shadowColor = glyphColor;
+    c.shadowBlur = 6 * t;
+    c.fillStyle = glyphColor;
     c.beginPath(); c.arc(x, y, 3.6, 0, 2 * Math.PI); c.fill();
     c.shadowBlur = 0;
-    c.strokeStyle = '#f7d896'; c.lineWidth = 1.3;
+    c.strokeStyle = glyphColor; c.lineWidth = 1.3;
     for (let i = 0; i < 8; i++) {
       const ra = (i / 8) * 2 * Math.PI;
       c.beginPath();
