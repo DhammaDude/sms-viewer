@@ -862,11 +862,18 @@ function altAzToVec(azDeg, altDeg) {
 // "right" and "up" from any given center, including at the zenith itself.
 function basisAt(c) {
   const worldUp = { x: 0, y: 0, z: 1 };
-  let right = crossVec(c, worldUp);
+  const right = crossVec(c, worldUp);
   const rightLen = Math.hypot(right.x, right.y, right.z);
-  right = rightLen < 1e-6 ? { x: 1, y: 0, z: 0 } : { x: right.x / rightLen, y: right.y / rightLen, z: right.z / rightLen };
-  const up2 = crossVec(right, c);
-  return { right, up2 };
+  if (rightLen < 1e-6) {
+    // Looking straight up or down -- azimuth has no defined "right" via
+    // the usual cross product there, so the default view (dead zenith)
+    // picks its orientation directly instead: North at the top of the
+    // screen, East to the right, the same layout an ordinary map uses.
+    return { right: { x: 1, y: 0, z: 0 }, up2: { x: 0, y: 1, z: 0 } };
+  }
+  const rightNorm = { x: right.x / rightLen, y: right.y / rightLen, z: right.z / rightLen };
+  const up2 = crossVec(rightNorm, c);
+  return { right: rightNorm, up2 };
 }
 
 function projectSky(azDeg, altDeg, centerAzDeg, centerAltDeg) {
