@@ -453,6 +453,9 @@
             <button class="ctl" id="jump-retrograde-btn">Next Retrograde</button>
             <button class="ctl" id="jump-galilean-conjunction-btn">Next Galilean Conjunction</button>
           </div>
+          <div class="row" style="margin-top:6px">
+            <button class="ctl" id="jump-ring-crossing-btn">Next Ring Plane Crossing</button>
+          </div>
         </div>
         <div>
           <label>Data</label>
@@ -603,6 +606,19 @@ function saturnRingOpeningDeg(saturnPos) {
   const dx = -saturnPos.x / norm, dy = -saturnPos.y / norm, dz = -saturnPos.z / norm; // Saturn -> Sun
   const dot = SATURN_RING_POLE.x * dx + SATURN_RING_POLE.y * dy + SATURN_RING_POLE.z * dz;
   return rad2deg(Math.asin(Math.max(-1, Math.min(1, dot))));
+}
+
+// Same "live crescendo" idea as the Galilean conjunction pulse, just over
+// a vastly longer real timescale -- the ring opening angle itself already
+// glides smoothly through zero every ~15 years, so no artificial envelope
+// is needed here the way fast-playback forced one for the moons; the raw
+// angle already reads correctly at any speed. RING_GLOW_RANGE_DEG is a
+// soft few-degree window (crossings are usually many months apart at that
+// width) so the glow builds gradually rather than snapping on right at
+// the knife-edge crossing itself.
+const RING_GLOW_RANGE_DEG = 6;
+function ringCrossingIntensity(saturnPos) {
+  return Math.max(0, 1 - Math.abs(saturnRingOpeningDeg(saturnPos)) / RING_GLOW_RANGE_DEG);
 }
 
 const ZODIAC = ['♈ Aries','♉ Taurus','♊ Gemini','♋ Cancer','♌ Leo','♍ Virgo','♎ Libra','♏ Scorpio','♐ Sagittarius','♑ Capricorn','♒ Aquarius','♓ Pisces'];
@@ -1211,6 +1227,7 @@ const jumpSolarEclipseBtn = document.getElementById('jump-solar-eclipse-btn');
 const jumpLunarEclipseBtn = document.getElementById('jump-lunar-eclipse-btn');
 const jumpRetrogradeBtn = document.getElementById('jump-retrograde-btn');
 const jumpGalileanConjunctionBtn = document.getElementById('jump-galilean-conjunction-btn');
+const jumpRingCrossingBtn = document.getElementById('jump-ring-crossing-btn');
 
 jumpNewMoonBtn.addEventListener('click', () => setDate(nextPhaseDate(currentDate, 0)));
 jumpFullMoonBtn.addEventListener('click', () => setDate(nextPhaseDate(currentDate, 0.5)));
@@ -1273,6 +1290,44 @@ jumpGalileanConjunctionBtn.addEventListener('click', () => {
   const nextMs = searchNextEventStart('galileanConjunction', currentDate);
   if (nextMs !== null) setDate(new Date(nextMs));
   else almanacLine.textContent = "Couldn't find a Galilean moon conjunction in the next ~20 days.";
+});
+
+// Ring-plane crossings are ~15 years apart rather than days, so this scans
+// in coarse 5-day steps for the sign change in the ring's own opening
+// angle (a slow, smooth function -- no risk of stepping clean over a
+// crossing the way a jagged signal might), then bisects that 5-day
+// bracket down to sub-second precision. 40 iterations is overkill for
+// this app's own "textbook approximate" precision tier, but it's cheap.
+function nextSaturnRingCrossing(fromDate) {
+  const saturnEl = PLANETS.find(p => p.name === 'Saturn');
+  const Bat = (ms) => {
+    const T = (toJulianDate(new Date(ms)) - 2451545.0) / 36525;
+    return saturnRingOpeningDeg(heliocentric(saturnEl, T));
+  };
+  const stepMs = 5 * 86400000;
+  let prevT = fromDate.getTime(), prevB = Bat(prevT);
+  const maxSteps = Math.ceil((20 * 365.25 * 86400000) / stepMs); // 20-year horizon
+  for (let i = 1; i <= maxSteps; i++) {
+    const t = fromDate.getTime() + i * stepMs;
+    const B = Bat(t);
+    if (Math.sign(B) !== Math.sign(prevB)) {
+      let lo = prevT, hi = t, loB = prevB;
+      for (let k = 0; k < 40; k++) {
+        const mid = (lo + hi) / 2;
+        const midB = Bat(mid);
+        if (Math.sign(midB) === Math.sign(loB)) { lo = mid; loB = midB; } else { hi = mid; }
+      }
+      return (lo + hi) / 2;
+    }
+    prevT = t; prevB = B;
+  }
+  return null;
+}
+
+jumpRingCrossingBtn.addEventListener('click', () => {
+  const nextMs = nextSaturnRingCrossing(currentDate);
+  if (nextMs !== null) setDate(new Date(nextMs));
+  else almanacLine.textContent = "Couldn't find a Saturn ring-plane crossing in the next ~20 years.";
 });
 
 // Calendar fields (day-of-year, the date picker, weekday/date readouts) use
@@ -2173,6 +2228,21 @@ function drawSaturnianView(c, originX, originY, scale, alpha, JD, positions, th)
   c.lineWidth = 1.5;
   c.stroke(); // hinted Cassini division
 
+  // Same ring-plane-crossing glow as the dial's own small Saturn marker,
+  // just with more room here for a proper soft bloom along the outer edge.
+  const crossingGlow = ringCrossingIntensity(saturnPos);
+  if (crossingGlow > 0) {
+    c.save();
+    c.shadowColor = 'rgba(255,244,214,0.95)';
+    c.shadowBlur = crossingGlow * 16;
+    c.beginPath();
+    c.ellipse(0, 0, ringOuterR, ringOuterR * ringScaleY, 0, 0, 2 * Math.PI);
+    c.strokeStyle = `rgba(255,244,214,${(crossingGlow * 0.8).toFixed(3)})`;
+    c.lineWidth = 1.2 + crossingGlow * 1.6;
+    c.stroke();
+    c.restore();
+  }
+
   const grad = c.createRadialGradient(-10, -10, 3, 0, 0, saturnR);
   grad.addColorStop(0, '#f2e2ba');
   grad.addColorStop(1, '#b89a5e');
@@ -2404,12 +2474,17 @@ function render() {
       // behind the dot so the planet itself covers the ring's middle.
       const ringScaleY = Math.abs(Math.sin(deg2rad(saturnRingOpeningDeg(pos))));
       const ringOuterR = p.dotR * 1.9;
+      const crossingGlow = ringCrossingIntensity(pos);
       ctx.save();
       ctx.globalAlpha = 0.6;
+      if (crossingGlow > 0) {
+        ctx.shadowColor = 'rgba(255,244,214,0.95)';
+        ctx.shadowBlur = crossingGlow * 8;
+      }
       ctx.beginPath();
       ctx.ellipse(x, y, ringOuterR, ringOuterR * ringScaleY, 0, 0, 2 * Math.PI);
       ctx.strokeStyle = 'rgba(230,224,202,0.9)';
-      ctx.lineWidth = 1.6;
+      ctx.lineWidth = 1.6 + crossingGlow * 1.2;
       ctx.stroke();
       ctx.restore();
     }
