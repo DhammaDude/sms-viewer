@@ -623,32 +623,30 @@ function ringCrossingIntensity(saturnPos) {
 
 const ZODIAC = ['♈ Aries','♉ Taurus','♊ Gemini','♋ Cancer','♌ Leo','♍ Virgo','♎ Libra','♏ Scorpio','♐ Sagittarius','♑ Capricorn','♒ Aquarius','♓ Pisces'];
 
-// Stylized star plots of each zodiac constellation's own actual named
-// stars, schematic in position (these constellations are faint and
-// irregular; a literal RA/Dec plot wouldn't read as anything at the Moon
-// Phase dial's small scale) but real in identity and brightness -- each
-// star's magnitude below is its real visual magnitude, so Antares,
+// Star plots of each zodiac constellation's own actual named stars, real
+// in both identity/brightness and relative position: each [x,y] is a
+// local equirectangular projection of that star's real RA/Dec around its
+// constellation's own mean position (dx = dRA*15*cos(dec0), dy = dDec),
+// which preserves the real angular shape of the asterism at this small a
+// field, then normalized to fit [-1,1] per constellation -- not an
+// eyeballed shape. Magnitude is real visual magnitude, so Antares,
 // Regulus, and Spica genuinely outshine the faint stars of Cancer or
-// Pisces the way they do in the actual sky, and Virgo's brighter, wider
-// pattern against Libra's fainter, tighter one reflects the two
-// constellations' real difference in brightness rather than an arbitrary
-// shape choice. Normalized to roughly [-1,1]; each entry is a flat list of
-// [x, y, magnitude] triples, no connecting lines -- just the stars
-// themselves, at their own relative brightness. Indexed the same as
-// ZODIAC above (0=Aries .. 11=Pisces).
+// Pisces the way they do in the actual sky. No connecting lines -- just
+// the stars themselves, at their own real position and brightness.
+// Indexed the same as ZODIAC above (0=Aries .. 11=Pisces).
 const ZODIAC_STAR_PATTERNS = [
-  [[-0.8,0.3,2.00],[-0.3,0.55,2.64],[0.0,0.4,3.86],[0.55,-0.15,3.63]], // Aries: Hamal, Sheratan, Mesarthim, 41 Ari
-  [[-0.15,-0.1,0.85],[0.75,0.55,1.65],[0.55,-0.65,3.00],[-0.55,0.15,3.65],[-0.35,0.35,3.53]], // Taurus: Aldebaran, Elnath, Zeta Tau, Prima Hyadum, Ain
-  [[0.55,0.75,1.14],[0.35,0.85,1.58],[0.45,-0.85,1.93],[-0.5,-0.7,2.87],[-0.35,-0.15,3.06],[0.1,-0.3,3.53]], // Gemini: Pollux, Castor, Alhena, Tejat, Mebsuta, Wasat
-  [[-0.5,-0.6,3.53],[0.1,0.15,3.94],[0.05,0.5,4.66],[0.6,-0.7,4.25]], // Cancer: Al Tarf, Asellus Australis, Asellus Borealis, Acubens
-  [[-0.85,-0.35,1.36],[-0.55,0.15,2.01],[-0.35,0.5,3.44],[0.35,0.45,2.56],[0.55,0.15,3.34],[0.9,-0.2,2.14]], // Leo: Regulus, Algieba, Adhafera, Zosma, Chertan, Denebola
-  [[0.3,-0.85,0.97],[-0.1,0.15,2.74],[0.5,0.55,2.85],[-0.6,0.5,3.87],[-0.75,0.15,3.60],[0.0,-0.25,3.38]], // Virgo: Spica, Porrima, Vindemiatrix, Zaniah, Zavijava, Heze
-  [[0.6,0.4,2.61],[-0.6,-0.1,2.75],[0.15,-0.5,3.29],[-0.1,0.6,3.91]], // Libra: Zubeneschamali, Zubenelgenubi, Brachium, Zubenelhakrabi
-  [[-0.7,0.5,0.96],[-0.35,0.75,2.29],[-0.15,0.85,2.56],[0.3,-0.55,1.87],[0.7,-0.75,1.62],[0.55,-0.85,2.70]], // Scorpius: Antares, Dschubba, Acrab, Sargas, Shaula, Lesath
-  [[-0.55,-0.45,1.85],[-0.2,-0.15,2.72],[-0.35,0.35,2.82],[0.35,0.05,2.05],[0.65,-0.3,2.60],[0.05,0.55,3.17]], // Sagittarius (Teapot): Kaus Australis, Kaus Media, Kaus Borealis, Nunki, Ascella, Phi Sgr
-  [[-0.8,0.1,3.05],[-0.85,0.35,3.57],[0.75,-0.4,3.68],[0.85,-0.15,2.87]], // Capricornus: Dabih, Algedi, Nashira, Deneb Algedi
-  [[-0.6,-0.3,2.87],[0.0,0.5,2.95],[0.5,-0.7,3.27],[-0.15,0.1,3.84]], // Aquarius: Sadalsuud, Sadalmelik, Skat, Albali
-  [[0.0,-0.6,3.82],[0.7,0.5,3.62],[-0.7,0.3,4.03]], // Pisces: Alrescha, Fumalsamakah, Omega Psc
+  [[0.096,0.078,2.00],[0.392,-0.195,2.64],[0.432,-0.351,3.86],[-0.92,0.468,3.63]], // Aries: Hamal, Sheratan, Mesarthim, 41 Ari
+  [[0.37,-0.33,0.85],[0.709,-0.408,3.65],[0.523,-0.092,3.53],[-0.682,0.748,1.65],[-0.92,0.082,3.00]], // Taurus: Aldebaran, Prima Hyadum, Ain, Elnath, Zeta Tau
+  [[-0.92,0.364,1.14],[-0.681,0.742,1.58],[0.589,-0.777,1.93],[0.919,-0.178,2.87],[0.45,0.079,3.06],[-0.357,-0.23,3.53]], // Gemini: Pollux, Castor, Alhena, Tejat, Mebsuta, Wasat
+  [[0.854,-0.873,3.53],[-0.137,0.435,3.94],[-0.097,0.92,4.66],[-0.621,-0.483,4.25]], // Cancer: Al Tarf, Asellus Australis, Asellus Borealis, Acubens
+  [[0.659,-0.372,1.36],[0.477,0.146,2.01],[0.529,0.381,3.44],[-0.372,0.19,2.56],[-0.373,-0.144,3.34],[-0.92,-0.201,2.14]], // Leo: Regulus, Algieba, Adhafera, Zosma, Chertan, Denebola
+  [[-0.587,-0.701,0.97],[0.92,0.125,3.60],[0.108,-0.08,2.74],[-0.739,-0.026,3.38],[0.518,-0.03,3.87],[-0.219,0.713,2.85]], // Virgo: Spica, Zavijava, Porrima, Heze, Zaniah, Vindemiatrix
+  [[0.442,0.327,2.75],[-0.106,0.92,2.61],[0.166,-0.496,3.29],[-0.502,-0.75,3.91]], // Libra: Zubenelgenubi, Zubeneschamali, Brachium, Zubenelhakrabi
+  [[0.386,0.355,0.96],[0.866,0.648,2.29],[0.782,0.865,2.56],[-0.734,-0.92,1.87],[-0.673,-0.466,1.62],[-0.626,-0.482,2.70]], // Scorpius: Antares, Dschubba, Acrab, Sargas, Shaula, Lesath
+  [[0.494,-0.92,1.85],[0.607,-0.17,2.72],[0.694,0.557,2.82],[-0.628,0.412,2.05],[-0.897,-0.178,2.60],[-0.271,0.298,3.17]], // Sagittarius (Teapot): Kaus Australis, Kaus Media, Kaus Borealis, Nunki, Ascella, Phi Sgr
+  [[0.871,0.209,3.57],[0.826,0.021,3.05],[-0.778,-0.137,3.68],[-0.92,-0.093,2.87]], // Capricornus: Algedi, Dabih, Nashira, Deneb Algedi
+  [[0.261,0.128,2.87],[-0.225,0.429,2.95],[-0.92,-0.46,3.27],[0.884,-0.097,3.84]], // Aquarius: Sadalsuud, Sadalmelik, Skat, Albali
+  [[0.444,-0.023,3.82],[0.476,0.029,3.62],[-0.92,-0.006,4.03]], // Pisces: Alrescha, Eta Psc, Omega Psc
 ];
 
 // The four Galilean moons of Jupiter, modeled the way Galileo himself saw
