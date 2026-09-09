@@ -3951,6 +3951,7 @@ function render() {
 
   drawMetonicDial(ctx, CX, CY, metonicYear, th);
   drawMoonPhase(ctx, moonPos.x, moonPos.y, moonR, moonPhase, sunSignIndex, th);
+  drawSunPositionRing(ctx, moonPos.x, moonPos.y, moonR, sunGeoLon, JD, currentDate, th);
   drawDayDateDial(ctx, CX, CY, weekday, dateStr, currentDate.getFullYear(), th);
 
   if (eclipseType) {
@@ -4189,6 +4190,93 @@ function drawMoonPhase(c, cx, cy, r, phase, signIndex, th) {
   c.fill();
 
   drawComplicationBezel(c, r, th);
+  c.restore();
+}
+
+// Twin-Pip sun-position ring around the Moon Phase dial's own rim: two
+// brass pips mark today's real sunrise/sunset compass bearings for the
+// observer's location (sunRiseSetToday), a faint gold arc traces the
+// daylight span between them, and a small sun glyph rides the ring at the
+// sun's actual current azimuth while it's above the horizon, fading out
+// (rather than snapping off) through the last few degrees of twilight.
+// Ring angle is a direct compass-bearing map -- mathAngle = 270 - azimuth
+// -- so the sun rises on the dial's left, climbs to the top at
+// culmination (true south, for a northern-hemisphere observer), and sets
+// on the right: the same sense a real analog "sun path" complication
+// reads in, and one that also degrades correctly for a southern-hemisphere
+// observer (whose culmination is due north) without any hemisphere-specific
+// logic, since it's just the real azimuth. Entirely hidden until the
+// observer sets a location, the same gate Sky View and the Jupiter/Saturn
+// visibility alarms already use.
+function drawSunPositionRing(c, cx, cy, r, sunGeoLon, JD, currentDateParam, th) {
+  if (!observerLoc) return;
+  const ringR = r + 21;
+  const mathAngleFor = azDeg => deg2rad(270 - azDeg);
+
+  c.save();
+  c.translate(cx, cy);
+
+  // A recessed dark groove, same language as the Metonic/Day-Date bands'
+  // own sunken tracks -- without it the gold daylight arc and brass pips
+  // sit directly on the case's own brass texture and all but disappear.
+  c.beginPath();
+  c.arc(0, 0, ringR, 0, 2 * Math.PI);
+  c.strokeStyle = th.metalDeepest;
+  c.lineWidth = 7;
+  c.stroke();
+  c.beginPath();
+  c.arc(0, 0, ringR, 0, 2 * Math.PI);
+  c.strokeStyle = th.subdialDim;
+  c.globalAlpha = 0.3;
+  c.lineWidth = 1;
+  c.stroke();
+  c.globalAlpha = 1;
+
+  const times = sunRiseSetToday(currentDateParam);
+  if (times) {
+    const a0 = mathAngleFor(times.riseAzU), a1 = mathAngleFor(times.setAzU);
+    const N = 48;
+    c.beginPath();
+    for (let i = 0; i <= N; i++) {
+      const a = a0 + (a1 - a0) * (i / N);
+      const x = Math.cos(a) * ringR, y = -Math.sin(a) * ringR;
+      if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
+    }
+    c.strokeStyle = '#e8b04a';
+    c.lineWidth = 3.5;
+    c.stroke();
+
+    [a0, a1].forEach(a => {
+      const x = Math.cos(a) * ringR, y = -Math.sin(a) * ringR;
+      c.beginPath(); c.arc(x, y, 3.4, 0, 2 * Math.PI);
+      c.fillStyle = th.metalBright; c.fill();
+      c.strokeStyle = th.metalDeepest; c.lineWidth = 1; c.stroke();
+    });
+  }
+
+  const sunNow = sunAltAzFor(sunGeoLon, JD);
+  if (sunNow && sunNow.altDeg > -6) {
+    const a = mathAngleFor(sunNow.azDeg);
+    const x = Math.cos(a) * ringR, y = -Math.sin(a) * ringR;
+    const alpha = Math.max(0, Math.min(1, sunNow.altDeg / 6));
+    c.save();
+    c.globalAlpha = alpha;
+    c.shadowColor = '#f7d896';
+    c.shadowBlur = 6;
+    c.fillStyle = '#f7d896';
+    c.beginPath(); c.arc(x, y, 3.6, 0, 2 * Math.PI); c.fill();
+    c.shadowBlur = 0;
+    c.strokeStyle = '#f7d896'; c.lineWidth = 1.3;
+    for (let i = 0; i < 8; i++) {
+      const ra = (i / 8) * 2 * Math.PI;
+      c.beginPath();
+      c.moveTo(x + Math.cos(ra) * 4.6, y + Math.sin(ra) * 4.6);
+      c.lineTo(x + Math.cos(ra) * 7, y + Math.sin(ra) * 7);
+      c.stroke();
+    }
+    c.restore();
+  }
+
   c.restore();
 }
 
@@ -4914,6 +5002,81 @@ function solarNoonAtOrBefore(targetMs, lonDeg) {
   let noon = localSolarNoonUTCms(new Date(targetMs), lonDeg);
   if (noon > targetMs) noon = localSolarNoonUTCms(new Date(targetMs - 86400000), lonDeg);
   return noon;
+}
+
+// The sun's real Alt/Az for the observer at an arbitrary geocentric
+// ecliptic longitude/JD -- the same eclipticToEquatorial/altAzFromEq
+// pipeline computeAlarmConditions below already uses for Jupiter/Saturn
+// visibility, factored out so the Twin-Pip sun-position ring can reuse it
+// without recomputing Earth's own heliocentric position when render()
+// already has sunGeoLon/JD in hand.
+function sunAltAzFor(sunGeoLonDeg, JD) {
+  if (!observerLoc) return null;
+  const sunEq = eclipticToEquatorial(sunGeoLonDeg, 0);
+  const lstDeg = localSiderealTimeDeg(JD, observerLoc.lon);
+  return altAzFromEq(sunEq.raDeg, sunEq.decDeg, observerLoc.lat, lstDeg);
+}
+
+// Same, but self-contained from a real-world Date -- used only by the
+// sunrise/sunset scan below, which needs the sun's position at many
+// arbitrary moments outside render()'s own current JD/sunGeoLon.
+function sunAltAzAtDate(date) {
+  const JD = toJulianDate(date);
+  const T = (JD - 2451545.0) / 36525;
+  const earthPos = heliocentric(PLANETS.find(p => p.name === 'Earth'), T);
+  const sunGeoLon = normDeg(earthPos.lon + 180);
+  return sunAltAzFor(sunGeoLon, JD);
+}
+
+// Today's real sunrise/sunset, for the Twin-Pip sun-position ring around
+// the Moon Phase dial. Scans a 24h window centered on local solar noon (so
+// it always fully contains "today" regardless of what time of day `date`
+// itself is) in 15-minute steps for the two sign changes in solar
+// altitude, then bisects each to sub-minute precision. Returns null if the
+// sun doesn't rise or set at all that day (polar day/night at this
+// latitude/season) or if no location is set. Cached per UTC calendar day
+// and location -- this is a ~100-sample scan, too expensive to redo every
+// animation frame, but only the underlying day actually needs to change
+// for the result to change.
+let _sunRiseSetCache = { key: null, result: null };
+function sunRiseSetToday(date) {
+  if (!observerLoc) return null;
+  const key = `${date.getUTCFullYear()}-${date.getUTCMonth()}-${date.getUTCDate()}-${observerLoc.lat.toFixed(2)}-${observerLoc.lon.toFixed(2)}`;
+  if (_sunRiseSetCache.key === key) return _sunRiseSetCache.result;
+
+  const noonMs = localSolarNoonUTCms(date, observerLoc.lon);
+  const start = noonMs - 12 * 3600000, end = noonMs + 12 * 3600000;
+  const STEPS = 96;
+  const altAt = i => sunAltAzAtDate(new Date(start + (end - start) * (i / STEPS))).altDeg;
+
+  function bisect(t0, t1, negativeAtT0) {
+    for (let k = 0; k < 24; k++) {
+      const tm = (t0 + t1) / 2;
+      const midNegative = sunAltAzAtDate(new Date(tm)).altDeg < 0;
+      if (midNegative === negativeAtT0) t0 = tm; else t1 = tm;
+    }
+    return (t0 + t1) / 2;
+  }
+
+  let riseMs = null, setMs = null, prevAlt = altAt(0);
+  for (let i = 0; i < STEPS; i++) {
+    const alt = altAt(i + 1);
+    const t0 = start + (end - start) * (i / STEPS), t1 = start + (end - start) * ((i + 1) / STEPS);
+    if (prevAlt < 0 && alt >= 0 && riseMs === null) riseMs = bisect(t0, t1, true);
+    if (prevAlt >= 0 && alt < 0 && setMs === null) setMs = bisect(t0, t1, false);
+    prevAlt = alt;
+  }
+
+  let result = null;
+  if (riseMs !== null && setMs !== null) {
+    const riseAz = sunAltAzAtDate(new Date(riseMs)).azDeg;
+    const setAz = sunAltAzAtDate(new Date(setMs)).azDeg;
+    const midAz = sunAltAzAtDate(new Date((riseMs + setMs) / 2)).azDeg;
+    const unwrapNear = (az, ref) => { let d = az - ref; while (d > 180) d -= 360; while (d < -180) d += 360; return ref + d; };
+    result = { riseMs, setMs, riseAzU: unwrapNear(riseAz, midAz), setAzU: unwrapNear(setAz, midAz) };
+  }
+  _sunRiseSetCache = { key, result };
+  return result;
 }
 
 // Real Alt/Az for Jupiter/Saturn and the eclipse-season check, evaluated at
