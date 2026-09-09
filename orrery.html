@@ -5012,18 +5012,21 @@ audioVolumeInput.addEventListener('input', () => {
 const compassBtn = document.getElementById('compass-btn');
 const compassNeedle = document.getElementById('compass-needle');
 let compassActive = false;
+let compassNoDataTimer = null;
 
 function onDeviceOrientation(e) {
   let heading;
   if (typeof e.webkitCompassHeading === 'number') {
     heading = e.webkitCompassHeading; // iOS Safari: already a compass heading, clockwise from true north
-  } else if (e.alpha !== null && (e.absolute || e.webkitCompassHeading === undefined)) {
-    heading = 360 - e.alpha; // other browsers: alpha increases counterclockwise from the device's own start orientation
+  } else if (e.absolute === true && e.alpha !== null) {
+    heading = 360 - e.alpha; // other browsers' absolute orientation: alpha increases counterclockwise from true/magnetic north
   } else {
-    return;
+    return; // relative-only orientation (no magnetometer fix) isn't a real heading -- skip rather than show a wrong one
   }
+  if (compassNoDataTimer) { clearTimeout(compassNoDataTimer); compassNoDataTimer = null; }
   compassActive = true;
   compassBtn.classList.add('active');
+  compassBtn.title = 'Compass';
   // The needle rotates opposite the device's own heading so it keeps
   // pointing at (approximate) north regardless of which way the phone
   // itself is turned -- how a real compass needle behaves.
@@ -5033,6 +5036,15 @@ function onDeviceOrientation(e) {
 function startCompass() {
   window.addEventListener('deviceorientationabsolute', onDeviceOrientation);
   window.addEventListener('deviceorientation', onDeviceOrientation);
+  // Sensors can fail silently -- no permission dialog, no error event, just
+  // nothing ever arriving (a non-secure origin, a device with no
+  // magnetometer, or a browser that's quietly blocked it). Without this,
+  // that looks identical to "still starting up" forever.
+  compassNoDataTimer = setTimeout(() => {
+    if (!compassActive) {
+      compassBtn.title = "No compass heading detected -- this needs a real https:// page (not a local file) and a device with a magnetometer.";
+    }
+  }, 3000);
 }
 
 compassBtn.addEventListener('click', () => {
@@ -5041,7 +5053,8 @@ compassBtn.addEventListener('click', () => {
     // must be triggered by a user gesture -- this click is that gesture.
     DeviceOrientationEvent.requestPermission().then(state => {
       if (state === 'granted') startCompass();
-    }).catch(() => {});
+      else compassBtn.title = 'Compass permission denied';
+    }).catch(() => { compassBtn.title = 'Compass permission unavailable'; });
   } else {
     startCompass();
   }
