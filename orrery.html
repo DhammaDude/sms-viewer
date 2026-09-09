@@ -3947,7 +3947,12 @@ function render() {
   }
 
   const moonR = 76;
-  const moonPos = lobeCenter(90, moonR);
+  // Positioned with 22px of extra clearance beyond the moon disk's own
+  // radius, not the usual bezel-only "+6" -- the sun-position ring drawn
+  // around this dial's rim (drawSunPositionRing) reaches out to about
+  // moonR+28, and without the extra room its near edge dipped inside the
+  // main dial's own case ring above it.
+  const moonPos = lobeCenter(90, moonR + 22);
 
   drawMetonicDial(ctx, CX, CY, metonicYear, th);
   drawMoonPhase(ctx, moonPos.x, moonPos.y, moonR, moonPhase, sunSignIndex, th);
@@ -4007,17 +4012,21 @@ const SHIELD_TIP_DEG = 20; // how far up either side the wings climb (0=diameter
 // more visible stair-stepping between the named complications; only the
 // Metonic/Moon/Day-Date tiers need to be tall enough to actually frame their
 // dial. Overall peak height is lower than before, for a smaller plate.
-// Moon plateau (and its flanking rise steps) grew from 200/180 to 236/216
+// Moon plateau (and its flanking rise steps) grew from 200/180 to 228/208
 // to clear the sun-position ring added around the Moon dial's own rim --
 // at the old height the ring's outer edge landed inside the plateau's own
-// fluted trim instead of inside its flat face.
+// fluted trim instead of inside its flat face. (The moon dial itself also
+// moved further from center -- see render()'s own lobeCenter call for the
+// moon -- since the ring's near edge was the bigger problem, dipping
+// inside the main dial's own case ring; this plateau bump alone doesn't
+// touch that.)
 const SHIELD_STEPS = [
   [33, 0],     // flush with the case out to here
   [44, 55],    // shoulder
   [59, 160],   // Metonic plateau
-  [72, 216],   // rise
-  [108, 236],  // Moon plateau (peak, centered on the bottom pole)
-  [121, 216],  // rise (mirrored)
+  [72, 208],   // rise
+  [108, 228],  // Moon plateau (peak, centered on the bottom pole)
+  [121, 208],  // rise (mirrored)
   [136, 160],  // Day-Date plateau
   [147, 55],   // shoulder (mirrored)
   [180, 0],    // flush with the case from here to the far wingtip
