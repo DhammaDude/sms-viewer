@@ -127,6 +127,10 @@
     opacity: .55; transition: opacity .15s, color .15s, background .15s;
   }
   #compass-btn:hover, #compass-btn:focus-visible, #compass-btn.active { opacity: 1; color: var(--brass); background: var(--panel2); }
+  /* Uncalibrated fallback (device has no real compass fix) reads as dimmer
+     amber rather than full brass, so it doesn't look identical to a true
+     heading -- a state you can see at a glance, not just in a tooltip. */
+  #compass-btn.approx { opacity: 1; color: var(--accent); }
   #compass-needle { display: inline-block; transition: transform .2s ease-out; }
 
   #audio-panel {
@@ -5011,22 +5015,37 @@ audioVolumeInput.addEventListener('input', () => {
 // ─────────────────────────────────────────────────────────────────────────
 const compassBtn = document.getElementById('compass-btn');
 const compassNeedle = document.getElementById('compass-needle');
-let compassActive = false;
+let compassActive = false;      // any orientation data at all has arrived
+let compassGotTrueHeading = false; // specifically a real compass-referenced (not just relative) reading
 let compassNoDataTimer = null;
+let compassAnyEventSeen = false;
 
 function onDeviceOrientation(e) {
-  let heading;
+  let heading, isTrueHeading;
   if (typeof e.webkitCompassHeading === 'number') {
-    heading = e.webkitCompassHeading; // iOS Safari: already a compass heading, clockwise from true north
+    heading = e.webkitCompassHeading; isTrueHeading = true; // iOS Safari: already a compass heading, clockwise from true north
   } else if (e.absolute === true && e.alpha !== null) {
-    heading = 360 - e.alpha; // other browsers' absolute orientation: alpha increases counterclockwise from true/magnetic north
+    heading = 360 - e.alpha; isTrueHeading = true; // Android absolute orientation: alpha increases counterclockwise from true/magnetic north
+  } else if (e.alpha !== null) {
+    // Relative-only orientation -- no compass fix, so this drifts with the
+    // device's own start position rather than pointing at real north. Only
+    // used as a last resort (see below), and flagged as such rather than
+    // silently passed off as a real heading.
+    heading = 360 - e.alpha; isTrueHeading = false;
   } else {
-    return; // relative-only orientation (no magnetometer fix) isn't a real heading -- skip rather than show a wrong one
+    return;
   }
-  if (compassNoDataTimer) { clearTimeout(compassNoDataTimer); compassNoDataTimer = null; }
+  compassAnyEventSeen = true;
+  if (isTrueHeading) {
+    if (compassNoDataTimer) { clearTimeout(compassNoDataTimer); compassNoDataTimer = null; }
+    compassGotTrueHeading = true;
+    compassBtn.classList.remove('approx');
+    compassBtn.title = 'Compass';
+  } else if (compassGotTrueHeading) {
+    return; // already have a real heading -- ignore the worse relative data entirely
+  }
   compassActive = true;
   compassBtn.classList.add('active');
-  compassBtn.title = 'Compass';
   // The needle rotates opposite the device's own heading so it keeps
   // pointing at (approximate) north regardless of which way the phone
   // itself is turned -- how a real compass needle behaves.
@@ -5037,12 +5056,19 @@ function startCompass() {
   window.addEventListener('deviceorientationabsolute', onDeviceOrientation);
   window.addEventListener('deviceorientation', onDeviceOrientation);
   // Sensors can fail silently -- no permission dialog, no error event, just
-  // nothing ever arriving (a non-secure origin, a device with no
-  // magnetometer, or a browser that's quietly blocked it). Without this,
-  // that looks identical to "still starting up" forever.
+  // nothing (or only uncalibrated relative data) ever arriving. Give this
+  // a few seconds to see if a real compass-referenced reading shows up;
+  // if not, either fall back to relative data (marked as approximate) or,
+  // if literally nothing arrived at all, say so plainly.
   compassNoDataTimer = setTimeout(() => {
-    if (!compassActive) {
-      compassBtn.title = "No compass heading detected -- this needs a real https:// page (not a local file) and a device with a magnetometer.";
+    if (compassGotTrueHeading) return;
+    if (compassAnyEventSeen) {
+      compassBtn.classList.add('approx');
+      compassBtn.title = "Approximate heading -- this device isn't reporting a real compass fix, so this just tracks how far you've turned since opening the app, not true north.";
+      showAlarmToast("Compass: no true heading from this device -- showing an approximate, uncalibrated direction instead.");
+    } else {
+      compassBtn.title = "No orientation data at all -- this needs a real https:// page (not a local file) on a device with an orientation sensor.";
+      showAlarmToast("Compass: no orientation data received. Make sure you're on the live https:// page, not a downloaded file, and that motion/orientation access is allowed for this site.");
     }
   }, 3000);
 }
@@ -5053,8 +5079,8 @@ compassBtn.addEventListener('click', () => {
     // must be triggered by a user gesture -- this click is that gesture.
     DeviceOrientationEvent.requestPermission().then(state => {
       if (state === 'granted') startCompass();
-      else compassBtn.title = 'Compass permission denied';
-    }).catch(() => { compassBtn.title = 'Compass permission unavailable'; });
+      else { compassBtn.title = 'Compass permission denied'; showAlarmToast('Compass: permission denied.'); }
+    }).catch(() => { compassBtn.title = 'Compass permission unavailable'; showAlarmToast('Compass: permission request failed.'); });
   } else {
     startCompass();
   }
