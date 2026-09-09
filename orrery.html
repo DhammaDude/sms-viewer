@@ -113,6 +113,22 @@
   }
   #audio-btn:hover, #audio-btn:focus-visible, #audio-btn.active { opacity: 1; color: var(--brass); background: var(--panel2); }
 
+  /* Discreet compass -- mirrors Settings/Audio on the opposite corner.
+     Purely a live heading readout from the device's own sensor; it never
+     touches Sky View, the dial, or anything else on the watch. Tapping it
+     is also how iOS's permission prompt for motion/orientation gets
+     triggered, since that API requires a user gesture. */
+  #compass-btn {
+    position: fixed; top: 14px; left: 14px; z-index: 60;
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--panel2); border: 1px solid var(--border); color: var(--muted);
+    font-size: 15px; line-height: 1; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    opacity: .55; transition: opacity .15s, color .15s, background .15s;
+  }
+  #compass-btn:hover, #compass-btn:focus-visible, #compass-btn.active { opacity: 1; color: var(--brass); background: var(--panel2); }
+  #compass-needle { display: inline-block; transition: transform .2s ease-out; }
+
   #audio-panel {
     display: none; position: fixed; top: 56px; right: 14px; z-index: 61;
     background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
@@ -354,6 +370,7 @@
 
 <button id="settings-btn" title="Settings" aria-label="Settings">⚙</button>
 <button id="audio-btn" title="Sound" aria-label="Sound">🔊</button>
+<button id="compass-btn" title="Compass" aria-label="Compass heading"><span id="compass-needle">▲</span></button>
 <div id="audio-panel">
   <div id="audio-panel-label">Sound</div>
   <div id="audio-panel-row">
@@ -4980,6 +4997,54 @@ audioVolumeInput.addEventListener('input', () => {
   audioVolume = parseInt(audioVolumeInput.value, 10);
   localStorage.setItem('antikythera-audio-volume', String(audioVolume));
   updateAudioUI();
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// Discreet compass -- a live heading readout from the device's own
+// orientation sensor, entirely self-contained: it only ever touches its
+// own needle icon, never Sky View, the dial, or any other app state, per
+// the brief ("should only effect the compass indicator not anything
+// else"). Heading is an approximation, same spirit as the rest of this
+// app's "textbook precision" astronomy -- it doesn't correct for screen
+// orientation (portrait vs. landscape) or true-vs-magnetic north, both of
+// which are out of scope for a discreet on-face indicator.
+// ─────────────────────────────────────────────────────────────────────────
+const compassBtn = document.getElementById('compass-btn');
+const compassNeedle = document.getElementById('compass-needle');
+let compassActive = false;
+
+function onDeviceOrientation(e) {
+  let heading;
+  if (typeof e.webkitCompassHeading === 'number') {
+    heading = e.webkitCompassHeading; // iOS Safari: already a compass heading, clockwise from true north
+  } else if (e.alpha !== null && (e.absolute || e.webkitCompassHeading === undefined)) {
+    heading = 360 - e.alpha; // other browsers: alpha increases counterclockwise from the device's own start orientation
+  } else {
+    return;
+  }
+  compassActive = true;
+  compassBtn.classList.add('active');
+  // The needle rotates opposite the device's own heading so it keeps
+  // pointing at (approximate) north regardless of which way the phone
+  // itself is turned -- how a real compass needle behaves.
+  compassNeedle.style.transform = `rotate(${-heading}deg)`;
+}
+
+function startCompass() {
+  window.addEventListener('deviceorientationabsolute', onDeviceOrientation);
+  window.addEventListener('deviceorientation', onDeviceOrientation);
+}
+
+compassBtn.addEventListener('click', () => {
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    // iOS 13+ gates the sensor behind an explicit permission prompt that
+    // must be triggered by a user gesture -- this click is that gesture.
+    DeviceOrientationEvent.requestPermission().then(state => {
+      if (state === 'granted') startCompass();
+    }).catch(() => {});
+  } else {
+    startCompass();
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────
