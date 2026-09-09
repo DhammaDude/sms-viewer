@@ -2892,6 +2892,22 @@ function scaleR(auDist) {
   return R_MIN + t * (R_MAX - R_MIN);
 }
 
+// The four inner planets sit close enough together under scaleR's sqrt
+// compression (Mercury..Mars span only ~58-85px) that their dots -- sized
+// for legibility, not literal scale -- routinely overlapped ("collided")
+// whenever two of them landed near the same angle. Rather than touch
+// scaleR itself (and disturb the outer planets, which already had room),
+// each inner planet gets a fixed pixel offset that rigidly shifts its
+// whole orbit outward or inward to a hand-picked mean radius, still
+// riding on top of scaleR's own output -- so the real eccentricity-driven
+// wobble around that mean is untouched, just recentered. Chosen so every
+// adjacent gap clears the sum of both dots' radii with a few px to spare,
+// and Mars still leaves Jupiter's own orbit (~131px) a wide berth.
+const INNER_ORBIT_OFFSET = { Mercury: -22, Venus: -13, Earth: 1, Mars: 13 };
+function orbitR(planetName, rawR) {
+  return rawR + (INNER_ORBIT_OFFSET[planetName] || 0);
+}
+
 // Deterministic PRNG (same seed -> same texture every render, no flicker).
 function mulberry32(seed) {
   return function () {
@@ -3779,7 +3795,7 @@ function render() {
   let zoomOriginX = CX, zoomOriginY = CY;
   if (zoomBody) {
     const zp = positions[zoomBody];
-    const zrr = scaleR(zp.r);
+    const zrr = orbitR(zoomBody, scaleR(zp.r));
     const za = deg2rad(zp.lon);
     zoomOriginX = CX + Math.cos(za) * zrr;
     zoomOriginY = CY - Math.sin(za) * zrr;
@@ -3797,7 +3813,7 @@ function render() {
   ctx.save();
   ctx.translate(CX, CY);
   PLANETS.forEach(p => {
-    const rr = scaleR(positions[p.name].a);
+    const rr = orbitR(p.name, scaleR(positions[p.name].a));
     ctx.beginPath();
     ctx.arc(0, 0, rr, 0, 2 * Math.PI);
     ctx.strokeStyle = th.orbitRing;
@@ -3851,7 +3867,7 @@ function render() {
   ctx.translate(CX, CY);
   PLANETS.forEach(p => {
     const pos = positions[p.name];
-    const rr = scaleR(pos.r);
+    const rr = orbitR(p.name, scaleR(pos.r));
     const a = deg2rad(pos.lon);
     const x = Math.cos(a) * rr, y = -Math.sin(a) * rr;
 
