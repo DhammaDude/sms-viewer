@@ -2209,7 +2209,7 @@ const SATURN_MOON_ORBIT_R = { Tethys: 70, Dione: 100, Rhea: 135, Titan: 210 };
 // accent hue as the crossing nears (ringCrossingIntensity, already used
 // elsewhere), and the needle itself lights up with a slow breathing glow
 // only once it's within RING_GAUGE_LIT_MARGIN_DEG of dead center.
-const RING_GAUGE_RADIUS = 235;
+const RING_GAUGE_RADIUS = 265;
 const RING_GAUGE_HALF_SPAN_DEG = 45;
 const RING_GAUGE_MAX_B = 27; // just past the rings' real ~26.7deg peak opening
 const RING_GAUGE_LIT_MARGIN_DEG = 3;
@@ -2339,7 +2339,7 @@ function drawSaturnianView(c, originX, originY, scale, alpha, JD, positions, th)
     c.fillText(m.name, x, y + m.dotR * 2.4 + 12);
   });
 
-  drawEarthDirectionPointer(c, saturnPos, positions['Earth'], SATURN_MOON_ORBIT_R.Titan, th);
+  drawEarthDirectionPointer(c, saturnPos, positions['Earth'], SATURN_MOON_ORBIT_R.Titan + 30, th);
   drawRingCrossingGauge(c, saturnPos, th);
 
   c.restore();
