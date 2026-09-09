@@ -2198,6 +2198,88 @@ const SATURN_MOONS = [
 // Saturn marker uses, just with room here for an actual band and a hinted
 // Cassini division.
 const SATURN_MOON_ORBIT_R = { Tethys: 70, Dione: 100, Rhea: 135, Titan: 210 };
+
+// A proper watch-style gauge for the ring-plane crossing, hugging the
+// bottom of the view rather than a tint on the rings themselves (which
+// read as almost the same pale color as the rings' own material, even
+// animated). The needle tracks the ring's real opening angle B across a
+// fixed arc; B=0 (an actual crossing) is exactly the arc's dead center,
+// so the needle visibly centers itself rather than needing a label to
+// explain what "close" means. Color blends from muted to the app's own
+// accent hue as the crossing nears (ringCrossingIntensity, already used
+// elsewhere), and the needle itself lights up with a slow breathing glow
+// only once it's within RING_GAUGE_LIT_MARGIN_DEG of dead center.
+const RING_GAUGE_RADIUS = 235;
+const RING_GAUGE_HALF_SPAN_DEG = 45;
+const RING_GAUGE_MAX_B = 27; // just past the rings' real ~26.7deg peak opening
+const RING_GAUGE_LIT_MARGIN_DEG = 3;
+function drawRingCrossingGauge(c, saturnPos, th) {
+  const B = saturnRingOpeningDeg(saturnPos);
+  const approach = ringCrossingIntensity(saturnPos);
+  const lit = Math.abs(B) < RING_GAUGE_LIT_MARGIN_DEG;
+  const needleColor = lerpColor(th.glyphDefault, th.accentHand, approach);
+  const at = (deg, r) => ({ x: Math.cos(deg2rad(deg)) * r, y: -Math.sin(deg2rad(deg)) * r });
+
+  c.save();
+
+  // arc track
+  c.beginPath();
+  for (let i = 0; i <= 40; i++) {
+    const deg = 270 - RING_GAUGE_HALF_SPAN_DEG + 2 * RING_GAUGE_HALF_SPAN_DEG * (i / 40);
+    const p = at(deg, RING_GAUGE_RADIUS);
+    if (i === 0) c.moveTo(p.x, p.y); else c.lineTo(p.x, p.y);
+  }
+  c.strokeStyle = th.orbitRing;
+  c.lineWidth = 1.2;
+  c.stroke();
+
+  // ticks -- the center one marks the crossing itself
+  [-RING_GAUGE_HALF_SPAN_DEG, -RING_GAUGE_HALF_SPAN_DEG / 2, 0, RING_GAUGE_HALF_SPAN_DEG / 2, RING_GAUGE_HALF_SPAN_DEG].forEach(off => {
+    const deg = 270 + off;
+    const isCenter = off === 0;
+    const inner = at(deg, RING_GAUGE_RADIUS - (isCenter ? 6 : 3));
+    const outer = at(deg, RING_GAUGE_RADIUS + (isCenter ? 6 : 3));
+    c.beginPath();
+    c.moveTo(inner.x, inner.y);
+    c.lineTo(outer.x, outer.y);
+    c.strokeStyle = isCenter ? th.accentHand : th.orbitRing;
+    c.lineWidth = isCenter ? 1.6 : 1;
+    c.stroke();
+  });
+
+  // needle, tip pointing outward at B's mapped position on the arc
+  const frac = Math.max(-1, Math.min(1, B / RING_GAUGE_MAX_B));
+  const needleDeg = 270 + frac * RING_GAUGE_HALF_SPAN_DEG;
+  const tip = at(needleDeg, RING_GAUGE_RADIUS);
+  const base = at(needleDeg, RING_GAUGE_RADIUS - 14);
+  if (lit) {
+    const breathe = 0.5 + 0.5 * Math.sin(performance.now() / 500);
+    c.shadowColor = th.accentHand;
+    c.shadowBlur = 5 + breathe * 6;
+  }
+  c.beginPath();
+  c.moveTo(base.x, base.y);
+  c.lineTo(tip.x, tip.y);
+  c.strokeStyle = needleColor;
+  c.lineWidth = lit ? 2.2 : 1.4;
+  c.stroke();
+
+  // arrowhead, pointing radially outward from the tip
+  const ux = Math.cos(deg2rad(needleDeg)), uy = -Math.sin(deg2rad(needleDeg));
+  const px = -uy, py = ux;
+  const wing1 = { x: tip.x - ux * 6 + px * 4, y: tip.y - uy * 6 + py * 4 };
+  const wing2 = { x: tip.x - ux * 6 - px * 4, y: tip.y - uy * 6 - py * 4 };
+  c.beginPath();
+  c.moveTo(tip.x, tip.y);
+  c.lineTo(wing1.x, wing1.y);
+  c.lineTo(wing2.x, wing2.y);
+  c.closePath();
+  c.fillStyle = needleColor;
+  c.fill();
+
+  c.restore();
+}
+
 function drawSaturnianView(c, originX, originY, scale, alpha, JD, positions, th) {
   const saturnPos = positions['Saturn'];
   c.save();
@@ -2227,21 +2309,6 @@ function drawSaturnianView(c, originX, originY, scale, alpha, JD, positions, th)
   c.strokeStyle = 'rgba(90,80,60,0.35)';
   c.lineWidth = 1.5;
   c.stroke(); // hinted Cassini division
-
-  // Same ring-plane-crossing glow as the dial's own small Saturn marker,
-  // just with more room here for a proper soft bloom along the outer edge.
-  const crossingGlow = ringCrossingIntensity(saturnPos);
-  if (crossingGlow > 0) {
-    c.save();
-    c.shadowColor = 'rgba(255,244,214,0.95)';
-    c.shadowBlur = crossingGlow * 16;
-    c.beginPath();
-    c.ellipse(0, 0, ringOuterR, ringOuterR * ringScaleY, 0, 0, 2 * Math.PI);
-    c.strokeStyle = `rgba(255,244,214,${(crossingGlow * 0.8).toFixed(3)})`;
-    c.lineWidth = 1.2 + crossingGlow * 1.6;
-    c.stroke();
-    c.restore();
-  }
 
   const grad = c.createRadialGradient(-10, -10, 3, 0, 0, saturnR);
   grad.addColorStop(0, '#f2e2ba');
@@ -2273,6 +2340,7 @@ function drawSaturnianView(c, originX, originY, scale, alpha, JD, positions, th)
   });
 
   drawEarthDirectionPointer(c, saturnPos, positions['Earth'], SATURN_MOON_ORBIT_R.Titan, th);
+  drawRingCrossingGauge(c, saturnPos, th);
 
   c.restore();
 }
@@ -2474,17 +2542,12 @@ function render() {
       // behind the dot so the planet itself covers the ring's middle.
       const ringScaleY = Math.abs(Math.sin(deg2rad(saturnRingOpeningDeg(pos))));
       const ringOuterR = p.dotR * 1.9;
-      const crossingGlow = ringCrossingIntensity(pos);
       ctx.save();
       ctx.globalAlpha = 0.6;
-      if (crossingGlow > 0) {
-        ctx.shadowColor = 'rgba(255,244,214,0.95)';
-        ctx.shadowBlur = crossingGlow * 8;
-      }
       ctx.beginPath();
       ctx.ellipse(x, y, ringOuterR, ringOuterR * ringScaleY, 0, 0, 2 * Math.PI);
       ctx.strokeStyle = 'rgba(230,224,202,0.9)';
-      ctx.lineWidth = 1.6 + crossingGlow * 1.2;
+      ctx.lineWidth = 1.6;
       ctx.stroke();
       ctx.restore();
     }
