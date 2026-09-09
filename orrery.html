@@ -623,30 +623,35 @@ function ringCrossingIntensity(saturnPos) {
 
 const ZODIAC = ['♈ Aries','♉ Taurus','♊ Gemini','♋ Cancer','♌ Leo','♍ Virgo','♎ Libra','♏ Scorpio','♐ Sagittarius','♑ Capricorn','♒ Aquarius','♓ Pisces'];
 
-// Star plots of each zodiac constellation's own actual named stars, real
-// in both identity/brightness and relative position: each [x,y] is a
-// local equirectangular projection of that star's real RA/Dec around its
-// constellation's own mean position (dx = dRA*15*cos(dec0), dy = dDec),
-// which preserves the real angular shape of the asterism at this small a
-// field, then normalized to fit [-1,1] per constellation -- not an
-// eyeballed shape. Magnitude is real visual magnitude, so Antares,
-// Regulus, and Spica genuinely outshine the faint stars of Cancer or
-// Pisces the way they do in the actual sky. No connecting lines -- just
-// the stars themselves, at their own real position and brightness.
-// Indexed the same as ZODIAC above (0=Aries .. 11=Pisces).
+// Star plots of each zodiac constellation, sourced directly from
+// Stellarium's own "modern_st" (Sky & Telescope) sky culture data --
+// i.e. the real stick-figure line segments professional star charts draw
+// for each constellation, given as chains of HIP catalog star numbers
+// (github.com/Stellarium/stellarium, skycultures/modern_st/index.json).
+// Each chain's stars were resolved to their real RA/Dec/visual magnitude
+// via the HYG star database (github.com/astronexus/HYG-Database, public
+// domain), then projected with a local equirectangular approximation
+// around the constellation's own mean position (dx = dRA*15*cos(dec0),
+// dy = dDec -- accurate for a field this small) and normalized to fit
+// [-1,1]. So both the shape (which stars connect to which) and the
+// brightness of each point are real, not approximated or eyeballed.
+// Each entry is a list of chains (polylines); each chain a list of
+// [x, y, magnitude] triples, drawn as connected line segments with a dot
+// at each star sized by its real brightness. Indexed the same as ZODIAC
+// above (0=Aries .. 11=Pisces).
 const ZODIAC_STAR_PATTERNS = [
-  [[0.096,0.078,2.00],[0.392,-0.195,2.64],[0.432,-0.351,3.86],[-0.92,0.468,3.63]], // Aries: Hamal, Sheratan, Mesarthim, 41 Ari
-  [[0.37,-0.33,0.85],[0.709,-0.408,3.65],[0.523,-0.092,3.53],[-0.682,0.748,1.65],[-0.92,0.082,3.00]], // Taurus: Aldebaran, Prima Hyadum, Ain, Elnath, Zeta Tau
-  [[-0.92,0.364,1.14],[-0.681,0.742,1.58],[0.589,-0.777,1.93],[0.919,-0.178,2.87],[0.45,0.079,3.06],[-0.357,-0.23,3.53]], // Gemini: Pollux, Castor, Alhena, Tejat, Mebsuta, Wasat
-  [[0.854,-0.873,3.53],[-0.137,0.435,3.94],[-0.097,0.92,4.66],[-0.621,-0.483,4.25]], // Cancer: Al Tarf, Asellus Australis, Asellus Borealis, Acubens
-  [[0.659,-0.372,1.36],[0.477,0.146,2.01],[0.529,0.381,3.44],[-0.372,0.19,2.56],[-0.373,-0.144,3.34],[-0.92,-0.201,2.14]], // Leo: Regulus, Algieba, Adhafera, Zosma, Chertan, Denebola
-  [[-0.587,-0.701,0.97],[0.92,0.125,3.60],[0.108,-0.08,2.74],[-0.739,-0.026,3.38],[0.518,-0.03,3.87],[-0.219,0.713,2.85]], // Virgo: Spica, Zavijava, Porrima, Heze, Zaniah, Vindemiatrix
-  [[0.442,0.327,2.75],[-0.106,0.92,2.61],[0.166,-0.496,3.29],[-0.502,-0.75,3.91]], // Libra: Zubenelgenubi, Zubeneschamali, Brachium, Zubenelhakrabi
-  [[0.386,0.355,0.96],[0.866,0.648,2.29],[0.782,0.865,2.56],[-0.734,-0.92,1.87],[-0.673,-0.466,1.62],[-0.626,-0.482,2.70]], // Scorpius: Antares, Dschubba, Acrab, Sargas, Shaula, Lesath
-  [[0.494,-0.92,1.85],[0.607,-0.17,2.72],[0.694,0.557,2.82],[-0.628,0.412,2.05],[-0.897,-0.178,2.60],[-0.271,0.298,3.17]], // Sagittarius (Teapot): Kaus Australis, Kaus Media, Kaus Borealis, Nunki, Ascella, Phi Sgr
-  [[0.871,0.209,3.57],[0.826,0.021,3.05],[-0.778,-0.137,3.68],[-0.92,-0.093,2.87]], // Capricornus: Algedi, Dabih, Nashira, Deneb Algedi
-  [[0.261,0.128,2.87],[-0.225,0.429,2.95],[-0.92,-0.46,3.27],[0.884,-0.097,3.84]], // Aquarius: Sadalsuud, Sadalmelik, Skat, Albali
-  [[0.444,-0.023,3.82],[0.476,0.029,3.62],[-0.92,-0.006,4.03]], // Pisces: Alrescha, Eta Psc, Omega Psc
+  [[[0.422,-0.352,3.88],[0.396,-0.196,2.64],[0.098,0.078,2.01],[-0.92,0.47,3.61]]], // Aries
+  [[[-0.92,0.33,2.97],[-0.195,0.105,0.87],[-0.11,0.074,3.4],[-0.006,0.062,3.65],[-0.043,0.155,3.77],[-0.11,0.234,3.53],[-0.787,0.691,1.65]],[[0.612,-0.223,3.73],[0.189,-0.405,3.91]],[[0.639,-0.258,3.61],[0.498,-0.676,4.29]],[[-0.006,0.062,3.65],[0.218,-0.09,3.41],[0.612,-0.223,3.73]]], // Taurus
+  [[[0.25,-0.779,3.35],[-0.285,-0.52,3.58],[-0.318,-0.132,3.5],[-0.057,-0.233,4.01],[0.373,-0.53,1.93],[-0.057,-0.233,4.01],[-0.318,-0.132,3.5],[-0.575,0.218,4.06],[-0.714,0.04,3.57],[-0.575,0.218,4.06],[-0.728,0.298,1.16],[-0.575,0.218,4.06],[-0.409,0.282,3.78],[-0.171,0.456,4.41],[-0.553,0.573,1.58],[-0.171,0.456,4.41],[0.127,0.721,3.6],[-0.171,0.456,4.41],[0.272,0.092,3.06],[0.515,-0.258,4.13],[0.272,0.092,3.06],[0.613,-0.094,2.87],[0.745,-0.095,3.31],[0.92,-0.041,4.16]]], // Gemini
+  [[[-0.333,-0.51,4.26],[-0.055,0.023,3.94],[0.512,-0.736,3.53],[-0.055,0.023,3.94],[-0.027,0.303,4.66],[-0.096,0.92,4.03]]], // Cancer
+  [[[0.25,-0.311,1.36],[0.262,-0.076,3.48],[0.115,0.075,2.01],[0.154,0.25,3.43],[0.432,0.377,3.88],[0.512,0.268,2.97]],[[0.115,0.075,2.01],[-0.514,0.109,2.56],[-0.92,-0.183,2.14],[-0.515,-0.141,3.33],[-0.514,0.109,2.56],[-0.515,-0.141,3.33],[0.262,-0.076,3.48]],[[0.432,0.377,3.88],[0.758,0.386,4.47],[0.676,0.228,4.32],[0.512,0.268,2.97],[0.262,-0.076,3.48]],[[-0.515,-0.141,3.33],[-0.628,-0.381,4.0],[-0.595,-0.601,4.05]]], // Leo
+  [[[0.496,-0.036,3.89],[0.638,0.328,4.12],[0.826,0.242,4.04],[0.779,0.058,3.59],[0.496,-0.036,3.89],[0.286,-0.066,2.74],[0.151,0.121,3.39],[0.087,0.414,2.85],[0.151,0.121,3.39],[0.286,-0.066,2.74],[0.012,-0.225,4.38],[-0.136,-0.442,0.98],[0.012,-0.225,4.38],[0.286,-0.066,2.74],[-0.228,-0.033,3.38],[-0.488,0.049,4.23],[-0.92,0.063,3.73],[-0.488,0.049,4.23],[-0.228,-0.033,3.38],[-0.627,-0.243,4.07],[-0.889,-0.229,3.87]]], // Virgo
+  [[[0.571,0.372,2.75],[0.068,0.92,2.61]],[[0.571,0.372,2.75],[0.317,-0.388,3.25]],[[0.068,0.92,2.61],[-0.289,0.475,3.91],[0.571,0.372,2.75],[-0.289,0.475,3.91],[-0.317,-0.622,3.6],[-0.349,-0.757,3.66]]], // Libra
+  [[[0.675,0.896,2.56],[0.749,0.701,2.29],[0.771,0.458,2.89],[0.749,0.701,2.29],[0.445,0.495,2.9],[0.325,0.436,1.06],[0.23,0.313,2.82],[0.022,-0.109,2.29],[-0.003,-0.369,3.0],[-0.042,-0.669,3.62],[-0.299,-0.73,3.32],[-0.666,-0.713,1.86],[-0.816,-0.514,2.99],[-0.741,-0.438,2.39],[-0.57,-0.317,2.7],[-0.612,-0.304,1.62],[-0.849,-0.3,3.19]],[[0.675,0.896,2.56],[0.579,0.92,4.0]],[[0.771,0.458,2.89],[0.799,0.243,3.87]]], // Scorpius
+  [[[0.394,-0.708,1.79],[0.762,-0.354,2.98],[0.458,-0.301,2.72],[0.394,-0.708,1.79],[0.458,-0.301,2.72],[0.319,0.093,2.82],[-0.035,-0.047,3.17],[0.458,-0.301,2.72],[-0.035,-0.047,3.17],[-0.227,0.015,2.05],[-0.46,-0.108,3.32],[-0.374,-0.305,2.6],[-0.035,-0.047,3.17],[-0.374,-0.305,2.6],[0.394,-0.708,1.79],[0.525,-0.92,3.1]],[[0.319,0.093,2.82],[0.603,0.482,3.84]],[[-0.755,0.769,3.92],[-0.517,0.485,2.88],[-0.415,0.421,3.76],[-0.276,0.478,3.52],[-0.517,0.485,2.88]]], // Sagittarius
+  [[[0.92,0.528,3.58],[0.863,0.346,3.05],[0.382,-0.505,4.13],[0.272,-0.639,4.12],[-0.397,-0.273,3.77],[-0.596,-0.034,4.51],[-0.787,0.237,2.85],[-0.654,0.194,3.69],[0.001,0.147,4.08],[0.92,0.528,3.58]]], // Capricornus
+  [[[0.92,-0.048,3.78],[0.531,0.093,2.9],[0.228,0.281,2.95],[0.087,0.243,3.86],[0.024,0.292,3.65],[-0.034,0.288,4.04],[0.024,0.292,3.65],[0.055,0.342,4.8],[0.228,0.281,2.95]],[[0.222,-0.204,4.29],[0.531,0.093,2.9],[0.228,0.281,2.95],[0.13,0.014,4.17],[-0.187,0.021,3.73],[-0.379,0.076,4.22],[-0.411,-0.036,4.41],[-0.456,-0.427,3.96],[-0.411,-0.036,4.41],[-0.336,-0.466,3.68],[-0.411,-0.036,4.41],[-0.205,-0.274,3.27],[-0.16,-0.194,4.05],[-0.187,0.021,3.73]]], // Aquarius
+  [[[-0.362,0.636,4.67],[-0.425,0.756,4.74],[-0.339,0.883,4.51],[-0.362,0.636,4.67],[-0.557,0.223,3.62],[-0.71,-0.054,4.26],[-0.894,-0.34,3.82],[-0.667,-0.218,4.45],[-0.244,-0.11,4.27],[-0.087,-0.124,4.44],[0.456,-0.156,4.03],[0.669,-0.212,4.13],[0.801,-0.178,4.27],[0.92,-0.316,3.7],[0.813,-0.407,4.95],[0.646,-0.384,4.49],[0.669,-0.212,4.13]]], // Pisces
 ];
 
 // The four Galilean moons of Jupiter, modeled the way Galileo himself saw
@@ -4126,21 +4131,32 @@ function drawMoonPhase(c, cx, cy, r, phase, signIndex, th) {
 
   // The dark face shows the current zodiac sign's own constellation
   // (kept dark in both themes, like a "panda dial" register) rather than an
-  // arbitrary starfield -- each star of ZODIAC_STAR_PATTERNS plotted on its
-  // own, no connecting lines, sized by its real light intensity rather than
-  // a uniform dot: flux scales as 2.512^(-magnitude) (the standard
-  // astronomical definition of the magnitude scale), and dot radius as its
-  // square root, so a star twice as bright reads as a visibly, but not
-  // absurdly, bigger point -- the same relationship a real long-exposure
-  // photo of the sky shows between a 1st-magnitude and a 4th-magnitude star.
+  // arbitrary starfield -- ZODIAC_STAR_PATTERNS' real stick-figure chains,
+  // drawn as connected line segments (the same lines a real star chart
+  // draws), with a dot at each star sized by its real light intensity
+  // rather than a uniform dot: flux scales as 2.512^(-magnitude) (the
+  // standard astronomical definition of the magnitude scale), and dot
+  // radius as its square root, so a star twice as bright reads as a
+  // visibly, but not absurdly, bigger point -- the same relationship a
+  // real long-exposure photo of the sky shows between a 1st-magnitude and
+  // a 4th-magnitude star.
   const patternScale = r * 0.54;
+  const dotRFor = mag => 0.55 + 1.9 * Math.sqrt(Math.pow(2.512, -mag));
+  c.strokeStyle = 'rgba(236,226,196,0.35)';
+  c.lineWidth = 0.7;
   c.fillStyle = 'rgba(236,226,196,0.85)';
-  ZODIAC_STAR_PATTERNS[signIndex].forEach(([px, py, mag]) => {
-    const flux = Math.pow(2.512, -mag);
-    const dotR = 0.55 + 1.9 * Math.sqrt(flux);
+  ZODIAC_STAR_PATTERNS[signIndex].forEach(chain => {
     c.beginPath();
-    c.arc(px * patternScale, py * patternScale, dotR, 0, 2 * Math.PI);
-    c.fill();
+    chain.forEach(([px, py], i) => {
+      const x = px * patternScale, y = py * patternScale;
+      if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
+    });
+    c.stroke();
+    chain.forEach(([px, py, mag]) => {
+      c.beginPath();
+      c.arc(px * patternScale, py * patternScale, dotRFor(mag), 0, 2 * Math.PI);
+      c.fill();
+    });
   });
 
   // Built as a polygon sampling both the disk's own limb and the terminator
