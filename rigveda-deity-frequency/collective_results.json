@@ -1,0 +1,98 @@
+[
+  [
+    "Maruts",
+    428,
+    169,
+    ""
+  ],
+  [
+    "Asvin(s) / Asvinau",
+    422,
+    118,
+    "NOUN-tagged only; excludes 16 ADJ-tagged 'asvin' forms meaning 'possessing horses'. Substantial lexical overlap with the separate Nasatya entry above (Nasatya is itself a name for the twins)."
+  ],
+  [
+    "Indra-Agni",
+    168,
+    34,
+    "Combines: (a) tokens where the automatic lemmatizer left the sandhi-fused compound unparsed (recovered by exact word-form match), and (b) adjacent, separately-lemmatized 'indra' + 'agni' tokens (the parser's sandhi-split treatment of the same dvandva). Heuristic, not a single clean lemma count; may include rare false positives from coincidental adjacency and may still miss some inflected forms. These occurrences are also included in the separate Indra and Agni individual totals (see Limitations) -- they are not subtracted from those totals."
+  ],
+  [
+    "Adityas (as a class)",
+    138,
+    75,
+    "Also occasionally used in the singular for one specific Aditya (e.g. Surya, Varuna); lemma-level data cannot separate these uses from the collective sense."
+  ],
+  [
+    "Rbhus",
+    93,
+    40,
+    ""
+  ],
+  [
+    "Visve Devah (All-Gods)",
+    93,
+    76,
+    "Heuristic: adjacent tokens with lemmas 'visva' + 'deva' in either order, not a distinct compound lemma in this corpus (visve devah is a phrase, not a fused compound). 'visva' is extremely common as an ordinary adjective ('all/every'), so this heuristic is our best proxy, not an exact count; may miss non-adjacent instances and could in principle include rare coincidental adjacency."
+  ],
+  [
+    "Mitra-Varuna",
+    91,
+    60,
+    "Fused dvandva compound, distinct lemma from standalone Mitra/Varuna."
+  ],
+  [
+    "Dyava-Prthivi (Heaven-and-Earth)",
+    79,
+    68,
+    "Fused dvandva compound."
+  ],
+  [
+    "Indra-Vayu",
+    49,
+    22,
+    "Same combined method as Indra-Agni above. Also included in the separate Indra and Vayu individual totals; not subtracted from those totals."
+  ],
+  [
+    "Indra-Varuna",
+    46,
+    11,
+    ""
+  ],
+  [
+    "Rbhuksan (chief Rbhu / also an epithet of Indra)",
+    33,
+    24,
+    "Ambiguous between naming the senior Rbhu and being used as an epithet of Indra; not merged into either entry."
+  ],
+  [
+    "Agni-Soma",
+    14,
+    3,
+    ""
+  ],
+  [
+    "Indra-Soma",
+    14,
+    4,
+    ""
+  ],
+  [
+    "Soma-Pusan",
+    4,
+    1,
+    ""
+  ],
+  [
+    "Soma-Rudra",
+    4,
+    1,
+    ""
+  ],
+  [
+    "Indra-Pusan",
+    1,
+    1,
+    ""
+  ]
+]

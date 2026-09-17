@@ -1,0 +1,194 @@
+[
+  [
+    "Indra",
+    2576,
+    539,
+    "Also base for compound Indra-Agni/Indra-Varuna/etc (tallied separately below); not fused with any common noun."
+  ],
+  [
+    "Agni",
+    1840,
+    409,
+    "RV does not lexically separate 'the god Agni' from 'sacrificial/ritual fire'; all occurrences counted per RV's own non-distinction. Excludes jamadagni (unrelated proper name) and dvandva compounds (tallied separately)."
+  ],
+  [
+    "Soma",
+    1137,
+    412,
+    "RV fuses 'the god Soma' and 'the soma plant/drink'; all occurrences counted together, per RV's own usage. Excludes dvandva compounds (agnisoma, indrasoma, etc., tallied separately)."
+  ],
+  [
+    "Varuna",
+    397,
+    207,
+    ""
+  ],
+  [
+    "Surya",
+    389,
+    263,
+    "Sun as deity and as astronomical body are not lexically separated in RV; counted together."
+  ],
+  [
+    "Mitra",
+    343,
+    214,
+    "Sanskrit 'mitra' can also mean common-noun 'friend/ally'; lemma-level data cannot fully separate these senses. Some fraction of the count may be the common noun, not the deity."
+  ],
+  [
+    "Usas",
+    341,
+    177,
+    "Dawn goddess; word also denotes the physical dawn. RV does not separate these senses; counted together."
+  ],
+  [
+    "Prthivi",
+    321,
+    228,
+    "Earth as goddess and as physical earth are not lexically separated. Excludes the Dyava-Prthivi dvandva compound (tallied separately)."
+  ],
+  [
+    "Savitr",
+    182,
+    92,
+    ""
+  ],
+  [
+    "Aditi",
+    174,
+    112,
+    "Mother of the Adityas; distinct from the collective 'Aditya' entry."
+  ],
+  [
+    "Vayu",
+    161,
+    82,
+    "Wind-god; distinct from Vata (below), a separate RV wind-deity."
+  ],
+  [
+    "Rudra",
+    135,
+    78,
+    ""
+  ],
+  [
+    "Bhaga",
+    129,
+    91,
+    "Also means common-noun 'share/fortune'; not fully separable at lemma level."
+  ],
+  [
+    "Brhaspati",
+    124,
+    59,
+    ""
+  ],
+  [
+    "Pusan",
+    122,
+    71,
+    ""
+  ],
+  [
+    "Vata",
+    120,
+    101,
+    "Wind-god distinct from Vayu; word also used for ordinary 'wind'."
+  ],
+  [
+    "Aryaman",
+    117,
+    83,
+    ""
+  ],
+  [
+    "Nasatya",
+    100,
+    56,
+    "Counted separately per project spec, though in RV this word is itself used as a (dual) name/epithet of the Asvin twins, not a wholly independent deity; substantial overlap with the Asvin entry in the collective table is expected."
+  ],
+  [
+    "Visnu",
+    99,
+    68,
+    ""
+  ],
+  [
+    "Dyaus",
+    98,
+    84,
+    "Nominative-singular forms only (dyauh/dyaur), used as a proxy for the personified sky-father, since the base lemma 'div' (975 occurrences) mostly means ordinary 'sky/heaven/day' and cannot be reliably split into deity vs. common-noun senses. This is a heuristic lower bound, not a full lemma count."
+  ],
+  [
+    "Rodasi",
+    90,
+    75,
+    "Consort of the Maruts; the same word (dual) can also mean 'the two worlds' (heaven-and-earth) as an ordinary noun. Not separable at lemma level; count likely includes some non-deity uses."
+  ],
+  [
+    "Yama",
+    76,
+    52,
+    ""
+  ],
+  [
+    "Sarasvati",
+    69,
+    44,
+    "River-goddess."
+  ],
+  [
+    "Tvastr",
+    65,
+    58,
+    ""
+  ],
+  [
+    "Puramdhi",
+    49,
+    45,
+    "Minor goddess of abundance/bounty; the lemma also has an ordinary abstract-noun sense ('bounty, plenty') not separable at lemma level. Two anusvara/n spelling variants of the same lemma summed."
+  ],
+  [
+    "Trita",
+    40,
+    30,
+    "Trita Aptya."
+  ],
+  [
+    "Vivasvant",
+    33,
+    31,
+    ""
+  ],
+  [
+    "Parjanya",
+    32,
+    23,
+    "Rain-god; word also used for 'rain cloud' generically in a few places."
+  ],
+  [
+    "Matarisvan",
+    27,
+    26,
+    ""
+  ],
+  [
+    "Apam Napat",
+    24,
+    17,
+    "Counted only where lemma 'napat' is immediately preceded by a form of 'ap' (waters), the fixed epithet-name 'Apam Napat' (a name applied to Agni in his watery aspect). Excludes other 'napat' (grandson/descendant) genitive phrases such as divo napata or manor napat, which are not this deity."
+  ],
+  [
+    "Dhatr",
+    20,
+    17,
+    "Minor creator-deity ('Establisher'); distinct from the verb-root homonym dha (excluded)."
+  ],
+  [
+    "Yami",
+    4,
+    2,
+    "Yama's twin sister; very low frequency, included only for completeness near the bottom of the table."
+  ]
+]
